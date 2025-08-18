@@ -2,7 +2,7 @@ import sqlite3 from 'sqlite3';
 import { Database, open } from "sqlite";
 import { performance } from 'perf_hooks';
 import { Logger } from "pino";
-import { AuthenticationState, BufferJSON, initAuthCreds, proto } from '@nazi-team/baileys';
+import { AuthenticationState, BufferJSON, initAuthCreds, proto } from '@whiskeysockets/baileys';
 
 export default new class SQLite {
     private instance: Database | null = null;

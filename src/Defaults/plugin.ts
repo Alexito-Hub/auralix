@@ -1,61 +1,45 @@
-import fs from "fs"
-import path from "path"
-import { pathToFileURL } from "url"
-import logger from "../Utils/logger"
+import fs from "fs";
+import path from "path";
+import { pathToFileURL } from "url";
 
-type Plugin = {
-    name: string
-    disable: boolean
-    path: string
-    [key: string]: any
+interface Plugin {
+    name: string;
+    description: string;
+    disable?: boolean;
+    command?: string[] | RegExp;
+    exec?: (m: any, ctx: { sock: any; db: any }) => Promise<any>
+    start?: (m: any, ctx: { sock: any; db: any }) => Promise<any>
+    path?: string;
 }
 
-export default class Plugins {
-    private pluginFilter: (file: string) => boolean
-    public folder: string
-    public plugins: Plugin[]
+export default new class Plugins {
+    public plugins: Plugin[] = [];
 
-    constructor(folderPath: string = 'plugins') {
-        this.pluginFilter = (file: string) => /\.js$/.test(file)
-        this.folder = path.join(process.cwd(), folderPath)
-        this.plugins = []
+    constructor(
+        private folder = path.join(process.cwd(), 'src/Plugins'),
+        private filter = (f: string) => /\.(js|ts)$/.test(f)
+    ) { }
+
+    async load(): Promise<void> {
+        if (!fs.existsSync(this.folder)) fs.mkdirSync(this.folder, { recursive: true });
+        await this.loadFromDir(this.folder);
     }
 
-    readPlugin = async (folder: string): Promise<void> => {
-        if (!fs.existsSync(folder)) fs.mkdirSync(folder, { recursive: true })
+    private async loadFromDir(dir: string): Promise<void> {
+        for (const file of fs.readdirSync(dir, { withFileTypes: true })) {
+            const fullPath = path.join(dir, file.name);
 
-        const entries = fs.readdirSync(folder, { withFileTypes: true })
-        const promises: Promise<void>[] = []
-
-        for (const result of entries) {
-            const _path = path.join(folder, result.name)
-            if (result.isDirectory()) {
-                logger.info({ path: _path }, `[PLUGIN] Entrando en subcarpeta`)
-                promises.push(this.readPlugin(_path))
+            if (file.isDirectory()) await this.loadFromDir(fullPath);
+            else if (file.isFile() && this.filter(file.name)) {
+                try {
+                    const { default: p } = await import(pathToFileURL(fullPath).href);
+                    if (p?.name && (p?.exec || p?.start)) {
+                        this.plugins.push({ disable: false, path: fullPath, ...p });
+                    }
+                } catch (e) {
+                    console.error(`Error loading plugin ${file.name}:`, e);
+                }
             }
-            if (result.isFile()) {
-                logger.info({ path: _path }, `[PLUGIN] Encontrado archivo`)
-                promises.push(this.loadPlugin(_path, result.name))
-            }
-        }
-
-        await Promise.all(promises)
-    }
-
-    loadPlugin = async (_path: string, filename: string): Promise<void> => {
-        if (!this.pluginFilter(filename)) return
-
-        const url = pathToFileURL(_path).href
-        const { default: plugin } = await import(url)
-
-        if (plugin) {
-            logger.info({ filename, path: _path }, `[PLUGIN] Cargado plugin`)
-            this.plugins.push({
-                name: filename,
-                disable: false,
-                ...plugin,
-                path: _path
-            })
         }
     }
 }

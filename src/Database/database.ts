@@ -15,7 +15,7 @@ export const profiling = (name: string, func: () => any, logger: Logger) => {
 export class database {
     public logger: Logger
     public path: string
-    public data: Proto.database.Icollection
+    public data: Proto.database.ICollection
     public needProfiling: boolean
     private db: Database.Database
 
@@ -30,12 +30,10 @@ export class database {
     constructor({ path, logger, needProfiling }: { path: string, logger: Logger, needProfiling: boolean }) {
         this.path = path
         this.logger = logger
-        this.data = Proto.database.collection.create({
-            users: {},
-            chats: {},
-            settings: {}
+        this.data = Proto.database.Collection.create({
+            users: {}
         });
-        
+
         this.needProfiling = needProfiling;
 
         const dir = require('path').dirname(path)
@@ -76,7 +74,7 @@ export class database {
             const row: any = this.db.prepare('SELECT data FROM storage WHERE id = ?').get(1);
             if (row) {
                 const buffer = row.data as Buffer;
-                this.data = Proto.database.collection.decode(buffer);
+                this.data = Proto.database.Collection.decode(buffer);
                 this.logger.info(`Database in archive ${this.path} read from cache (Size: ${buffer.length} bytes)`);
             }
         } catch (error) {
@@ -92,7 +90,7 @@ export class database {
     public async write() {
         try {
             const writeOperation = () => {
-                const writer = Proto.database.collection.encode(this.data);
+                const writer = Proto.database.Collection.encode(this.data);
                 const buffer = writer.finish();
                 this.db.transaction(() => {
                     this.db.prepare('INSERT OR REPLACE INTO storage (id, data) VALUES (?, ?)').run(1, Buffer.from(buffer));
@@ -108,4 +106,4 @@ export class database {
     }
 }
 
-export const db = new database({ path: './src/database/database.db', logger: P({ level: 'silent' }), needProfiling: true })
+export const db = new database({ path: './src/Database/database.db', logger: P({ level: 'silent' }), needProfiling: true })

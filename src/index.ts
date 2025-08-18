@@ -4,24 +4,25 @@ import {
     DisconnectReason,
     fetchLatestBaileysVersion,
     makeCacheableSignalKeyStore
-} from "@nazi-team/baileys";
+} from "@whiskeysockets/baileys";
 
 import { Boom } from "@hapi/boom";
-import QRCode from "qrcode";
 import pino, { Logger } from "pino";
 
-import { plugins } from "./config";
+import plugins from "./Defaults/plugin";
 import { Sms } from "./Defaults/normalize"
 import { groupMetadata, WASocket } from "./Defaults/core"
 import SQLite from "./Defaults/sqlite"
 import { db } from "./Database/database"
+import wconnect from "./Utils/auth";
+import Request from "./Scraper/Request";
 
 const start = async (): Promise<void> => {
     const DEFAULT_CACHE_NAME = "open"
     let retries = 0
     const session = new Map<string, ReturnType<typeof WASocket>>()
     const logger: Logger = pino({ level: "silent" })
-    let { state, saveCreds } = await SQLite.AuthState('socket', 'auth.db', logger)
+    let { state, saveCreds } = await SQLite.AuthState('socket', 'Auth/auth.db', logger)
 
     let { version } = await fetchLatestBaileysVersion()
     let auralix = WASocket({
@@ -31,6 +32,7 @@ const start = async (): Promise<void> => {
         version: version
     })
 
+    await plugins.load()
     await db.read()
     auralix?.ev.process(async (ev: Partial<BaileysEventMap>) => {
         if (!ev) return
@@ -39,13 +41,10 @@ const start = async (): Promise<void> => {
             const up = ev["connection.update"];
             const { qr, connection, lastDisconnect } = up
 
-            if (qr) {
-                console.log('[ ! ]' + "scan this qr")
-                QRCode.toString(qr, {
-                    type: "terminal",
-                    errorCorrectionLevel: "L",
-                }).then(console.log)
+            if (qr && !auralix.authState.creds.registered) {
+                await wconnect.ws(auralix, qr)
             }
+
             switch (connection) {
                 case 'open':
                     return
@@ -60,6 +59,7 @@ const start = async (): Promise<void> => {
                         case DisconnectReason.unavailableService:
                             if (retries <= 3) {
                                 retries++
+                                await new Promise(resolve => setTimeout(resolve, 5000))
                                 await start()
                             } else {
                                 text = `[ ! ] connection closed: ${reason}`
@@ -92,24 +92,30 @@ const start = async (): Promise<void> => {
                 if (ev["messages.upsert"].type === "notify" && message.message) {
                     const m = await Sms(auralix, message)
 
-                    console.log("[ ! ]" + JSON.stringify(m, null, 2))
                     let args = {
-                        auralix,
-                        db
+                        sock: auralix,
+                        db,
+                        r: Request
                     }
 
-                    for (const plugin of plugins) {
-                        const isCommand = !plugin.disable && plugin.command ? (Array.isArray(plugin.command) ? plugin.command.includes(m.command) : plugin.command.test(m.body)) : undefined
-
-                        console.log("[ ! ]" + isCommand)
-                        console.log("[ ! ]" + plugin)
-                        if (plugin.exec && typeof plugin.exec === 'function' && isCommand) {
-                            await plugin.exec.call(plugin, m, args)
+                    for (const plugin of plugins.plugins) {
+                        if (plugin.disable) continue
+                        
+                        const valid = plugin.command && (Array.isArray(plugin.command) ? plugin.command.includes(m.command) : plugin.command instanceof RegExp ? plugin.command.test(m.body || '') : false)
+                        
+                        if (valid && typeof plugin.exec === 'function') {
+                            await plugin.exec(m, args).catch(async (err: Error) => {
+                                console.error(`Error al ejecutar plugin ${plugin.name}:`, err);
+                                await m.reply(`Error en el comando: ${err.message || 'Error desconocido'}`);
+                            })
+                        }
+                        if (plugin.start && typeof plugin.start === 'function' && !valid) {
+                            if (m.isGroup) continue
+                            await plugin.start(m, args)
                         }
                     }
                 }
             }
-
         }
     })
 }

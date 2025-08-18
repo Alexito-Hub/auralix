@@ -13,8 +13,4 @@ const config = {
     prefix: ["@"]
 }
 
-const plugin = new Plugins('src/Plugins')
-export const pluginsReady = plugin.readPlugin(plugin.folder).then(() => plugin.plugins)
-export const plugins = plugin.plugins
-
 export default config

@@ -25,26 +25,30 @@
          */
         var database = {};
     
-        database.user = (function() {
+        database.User = (function() {
     
             /**
-             * Properties of a user.
+             * Properties of a User.
              * @memberof database
-             * @interface Iuser
-             * @property {string|null} [name] user name
-             * @property {boolean|null} [banned] user banned
-             * @property {number|null} [age] user age
+             * @interface IUser
+             * @property {string|null} [email] User email
+             * @property {string|null} [passwordHash] User passwordHash
+             * @property {boolean|null} [banned] User banned
+             * @property {string|null} [name] User name
+             * @property {number|null} [age] User age
+             * @property {number|Long|null} [createdAt] User createdAt
+             * @property {number|Long|null} [updatedAt] User updatedAt
              */
     
             /**
-             * Constructs a new user.
+             * Constructs a new User.
              * @memberof database
-             * @classdesc Represents a user.
-             * @implements Iuser
+             * @classdesc Represents a User.
+             * @implements IUser
              * @constructor
-             * @param {database.Iuser=} [properties] Properties to set
+             * @param {database.IUser=} [properties] Properties to set
              */
-            function user(properties) {
+            function User(properties) {
                 if (properties)
                     for (var keys = Object.keys(properties), i = 0; i < keys.length; ++i)
                         if (properties[keys[i]] != null)
@@ -52,101 +56,153 @@
             }
     
             /**
-             * user name.
-             * @member {string} name
-             * @memberof database.user
+             * User email.
+             * @member {string} email
+             * @memberof database.User
              * @instance
              */
-            user.prototype.name = "";
+            User.prototype.email = "";
     
             /**
-             * user banned.
+             * User passwordHash.
+             * @member {string} passwordHash
+             * @memberof database.User
+             * @instance
+             */
+            User.prototype.passwordHash = "";
+    
+            /**
+             * User banned.
              * @member {boolean} banned
-             * @memberof database.user
+             * @memberof database.User
              * @instance
              */
-            user.prototype.banned = false;
+            User.prototype.banned = false;
     
             /**
-             * user age.
+             * User name.
+             * @member {string} name
+             * @memberof database.User
+             * @instance
+             */
+            User.prototype.name = "";
+    
+            /**
+             * User age.
              * @member {number} age
-             * @memberof database.user
+             * @memberof database.User
              * @instance
              */
-            user.prototype.age = 0;
+            User.prototype.age = 0;
     
             /**
-             * Creates a new user instance using the specified properties.
-             * @function create
-             * @memberof database.user
-             * @static
-             * @param {database.Iuser=} [properties] Properties to set
-             * @returns {database.user} user instance
+             * User createdAt.
+             * @member {number|Long} createdAt
+             * @memberof database.User
+             * @instance
              */
-            user.create = function create(properties) {
-                return new user(properties);
+            User.prototype.createdAt = $util.Long ? $util.Long.fromBits(0,0,false) : 0;
+    
+            /**
+             * User updatedAt.
+             * @member {number|Long} updatedAt
+             * @memberof database.User
+             * @instance
+             */
+            User.prototype.updatedAt = $util.Long ? $util.Long.fromBits(0,0,false) : 0;
+    
+            /**
+             * Creates a new User instance using the specified properties.
+             * @function create
+             * @memberof database.User
+             * @static
+             * @param {database.IUser=} [properties] Properties to set
+             * @returns {database.User} User instance
+             */
+            User.create = function create(properties) {
+                return new User(properties);
             };
     
             /**
-             * Encodes the specified user message. Does not implicitly {@link database.user.verify|verify} messages.
+             * Encodes the specified User message. Does not implicitly {@link database.User.verify|verify} messages.
              * @function encode
-             * @memberof database.user
+             * @memberof database.User
              * @static
-             * @param {database.Iuser} message user message or plain object to encode
+             * @param {database.IUser} message User message or plain object to encode
              * @param {$protobuf.Writer} [writer] Writer to encode to
              * @returns {$protobuf.Writer} Writer
              */
-            user.encode = function encode(message, writer) {
+            User.encode = function encode(message, writer) {
                 if (!writer)
                     writer = $Writer.create();
-                if (message.name != null && Object.hasOwnProperty.call(message, "name"))
-                    writer.uint32(/* id 1, wireType 2 =*/10).string(message.name);
+                if (message.email != null && Object.hasOwnProperty.call(message, "email"))
+                    writer.uint32(/* id 1, wireType 2 =*/10).string(message.email);
+                if (message.passwordHash != null && Object.hasOwnProperty.call(message, "passwordHash"))
+                    writer.uint32(/* id 2, wireType 2 =*/18).string(message.passwordHash);
                 if (message.banned != null && Object.hasOwnProperty.call(message, "banned"))
-                    writer.uint32(/* id 2, wireType 0 =*/16).bool(message.banned);
+                    writer.uint32(/* id 3, wireType 0 =*/24).bool(message.banned);
+                if (message.name != null && Object.hasOwnProperty.call(message, "name"))
+                    writer.uint32(/* id 4, wireType 2 =*/34).string(message.name);
                 if (message.age != null && Object.hasOwnProperty.call(message, "age"))
-                    writer.uint32(/* id 3, wireType 0 =*/24).int32(message.age);
+                    writer.uint32(/* id 5, wireType 0 =*/40).int32(message.age);
+                if (message.createdAt != null && Object.hasOwnProperty.call(message, "createdAt"))
+                    writer.uint32(/* id 6, wireType 0 =*/48).int64(message.createdAt);
+                if (message.updatedAt != null && Object.hasOwnProperty.call(message, "updatedAt"))
+                    writer.uint32(/* id 7, wireType 0 =*/56).int64(message.updatedAt);
                 return writer;
             };
     
             /**
-             * Encodes the specified user message, length delimited. Does not implicitly {@link database.user.verify|verify} messages.
+             * Encodes the specified User message, length delimited. Does not implicitly {@link database.User.verify|verify} messages.
              * @function encodeDelimited
-             * @memberof database.user
+             * @memberof database.User
              * @static
-             * @param {database.Iuser} message user message or plain object to encode
+             * @param {database.IUser} message User message or plain object to encode
              * @param {$protobuf.Writer} [writer] Writer to encode to
              * @returns {$protobuf.Writer} Writer
              */
-            user.encodeDelimited = function encodeDelimited(message, writer) {
+            User.encodeDelimited = function encodeDelimited(message, writer) {
                 return this.encode(message, writer).ldelim();
             };
     
             /**
-             * Decodes a user message from the specified reader or buffer.
+             * Decodes a User message from the specified reader or buffer.
              * @function decode
-             * @memberof database.user
+             * @memberof database.User
              * @static
              * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
              * @param {number} [length] Message length if known beforehand
-             * @returns {database.user} user
+             * @returns {database.User} User
              * @throws {Error} If the payload is not a reader or valid buffer
              * @throws {$protobuf.util.ProtocolError} If required fields are missing
              */
-            user.decode = function decode(reader, length) {
+            User.decode = function decode(reader, length) {
                 if (!(reader instanceof $Reader))
                     reader = $Reader.create(reader);
-                var end = length === undefined ? reader.len : reader.pos + length, message = new $root.database.user();
+                var end = length === undefined ? reader.len : reader.pos + length, message = new $root.database.User();
                 while (reader.pos < end) {
                     var tag = reader.uint32();
                     switch (tag >>> 3) {
                     case 1:
-                        message.name = reader.string();
+                        message.email = reader.string();
                         break;
                     case 2:
-                        message.banned = reader.bool();
+                        message.passwordHash = reader.string();
                         break;
                     case 3:
+                        message.banned = reader.bool();
+                        break;
+                    case 4:
+                        message.name = reader.string();
+                        break;
+                    case 5:
                         message.age = reader.int32();
+                        break;
+                    case 6:
+                        message.createdAt = reader.int64();
+                        break;
+                    case 7:
+                        message.updatedAt = reader.int64();
                         break;
                     default:
                         reader.skipType(tag & 7);
@@ -157,526 +213,185 @@
             };
     
             /**
-             * Decodes a user message from the specified reader or buffer, length delimited.
+             * Decodes a User message from the specified reader or buffer, length delimited.
              * @function decodeDelimited
-             * @memberof database.user
+             * @memberof database.User
              * @static
              * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
-             * @returns {database.user} user
+             * @returns {database.User} User
              * @throws {Error} If the payload is not a reader or valid buffer
              * @throws {$protobuf.util.ProtocolError} If required fields are missing
              */
-            user.decodeDelimited = function decodeDelimited(reader) {
+            User.decodeDelimited = function decodeDelimited(reader) {
                 if (!(reader instanceof $Reader))
                     reader = new $Reader(reader);
                 return this.decode(reader, reader.uint32());
             };
     
             /**
-             * Verifies a user message.
+             * Verifies a User message.
              * @function verify
-             * @memberof database.user
+             * @memberof database.User
              * @static
              * @param {Object.<string,*>} message Plain object to verify
              * @returns {string|null} `null` if valid, otherwise the reason why it is not
              */
-            user.verify = function verify(message) {
+            User.verify = function verify(message) {
                 if (typeof message !== "object" || message === null)
                     return "object expected";
+                if (message.email != null && message.hasOwnProperty("email"))
+                    if (!$util.isString(message.email))
+                        return "email: string expected";
+                if (message.passwordHash != null && message.hasOwnProperty("passwordHash"))
+                    if (!$util.isString(message.passwordHash))
+                        return "passwordHash: string expected";
+                if (message.banned != null && message.hasOwnProperty("banned"))
+                    if (typeof message.banned !== "boolean")
+                        return "banned: boolean expected";
                 if (message.name != null && message.hasOwnProperty("name"))
                     if (!$util.isString(message.name))
                         return "name: string expected";
-                if (message.banned != null && message.hasOwnProperty("banned"))
-                    if (typeof message.banned !== "boolean")
-                        return "banned: boolean expected";
                 if (message.age != null && message.hasOwnProperty("age"))
                     if (!$util.isInteger(message.age))
                         return "age: integer expected";
+                if (message.createdAt != null && message.hasOwnProperty("createdAt"))
+                    if (!$util.isInteger(message.createdAt) && !(message.createdAt && $util.isInteger(message.createdAt.low) && $util.isInteger(message.createdAt.high)))
+                        return "createdAt: integer|Long expected";
+                if (message.updatedAt != null && message.hasOwnProperty("updatedAt"))
+                    if (!$util.isInteger(message.updatedAt) && !(message.updatedAt && $util.isInteger(message.updatedAt.low) && $util.isInteger(message.updatedAt.high)))
+                        return "updatedAt: integer|Long expected";
                 return null;
             };
     
             /**
-             * Creates a user message from a plain object. Also converts values to their respective internal types.
+             * Creates a User message from a plain object. Also converts values to their respective internal types.
              * @function fromObject
-             * @memberof database.user
+             * @memberof database.User
              * @static
              * @param {Object.<string,*>} object Plain object
-             * @returns {database.user} user
+             * @returns {database.User} User
              */
-            user.fromObject = function fromObject(object) {
-                if (object instanceof $root.database.user)
+            User.fromObject = function fromObject(object) {
+                if (object instanceof $root.database.User)
                     return object;
-                var message = new $root.database.user();
+                var message = new $root.database.User();
+                if (object.email != null)
+                    message.email = String(object.email);
+                if (object.passwordHash != null)
+                    message.passwordHash = String(object.passwordHash);
+                if (object.banned != null)
+                    message.banned = Boolean(object.banned);
                 if (object.name != null)
                     message.name = String(object.name);
-                if (object.banned != null)
-                    message.banned = Boolean(object.banned);
                 if (object.age != null)
                     message.age = object.age | 0;
+                if (object.createdAt != null)
+                    if ($util.Long)
+                        (message.createdAt = $util.Long.fromValue(object.createdAt)).unsigned = false;
+                    else if (typeof object.createdAt === "string")
+                        message.createdAt = parseInt(object.createdAt, 10);
+                    else if (typeof object.createdAt === "number")
+                        message.createdAt = object.createdAt;
+                    else if (typeof object.createdAt === "object")
+                        message.createdAt = new $util.LongBits(object.createdAt.low >>> 0, object.createdAt.high >>> 0).toNumber();
+                if (object.updatedAt != null)
+                    if ($util.Long)
+                        (message.updatedAt = $util.Long.fromValue(object.updatedAt)).unsigned = false;
+                    else if (typeof object.updatedAt === "string")
+                        message.updatedAt = parseInt(object.updatedAt, 10);
+                    else if (typeof object.updatedAt === "number")
+                        message.updatedAt = object.updatedAt;
+                    else if (typeof object.updatedAt === "object")
+                        message.updatedAt = new $util.LongBits(object.updatedAt.low >>> 0, object.updatedAt.high >>> 0).toNumber();
                 return message;
             };
     
             /**
-             * Creates a plain object from a user message. Also converts values to other types if specified.
+             * Creates a plain object from a User message. Also converts values to other types if specified.
              * @function toObject
-             * @memberof database.user
+             * @memberof database.User
              * @static
-             * @param {database.user} message user
+             * @param {database.User} message User
              * @param {$protobuf.IConversionOptions} [options] Conversion options
              * @returns {Object.<string,*>} Plain object
              */
-            user.toObject = function toObject(message, options) {
+            User.toObject = function toObject(message, options) {
                 if (!options)
                     options = {};
                 var object = {};
                 if (options.defaults) {
-                    object.name = "";
+                    object.email = "";
+                    object.passwordHash = "";
                     object.banned = false;
+                    object.name = "";
                     object.age = 0;
+                    if ($util.Long) {
+                        var long = new $util.Long(0, 0, false);
+                        object.createdAt = options.longs === String ? long.toString() : options.longs === Number ? long.toNumber() : long;
+                    } else
+                        object.createdAt = options.longs === String ? "0" : 0;
+                    if ($util.Long) {
+                        var long = new $util.Long(0, 0, false);
+                        object.updatedAt = options.longs === String ? long.toString() : options.longs === Number ? long.toNumber() : long;
+                    } else
+                        object.updatedAt = options.longs === String ? "0" : 0;
                 }
+                if (message.email != null && message.hasOwnProperty("email"))
+                    object.email = message.email;
+                if (message.passwordHash != null && message.hasOwnProperty("passwordHash"))
+                    object.passwordHash = message.passwordHash;
+                if (message.banned != null && message.hasOwnProperty("banned"))
+                    object.banned = message.banned;
                 if (message.name != null && message.hasOwnProperty("name"))
                     object.name = message.name;
-                if (message.banned != null && message.hasOwnProperty("banned"))
-                    object.banned = message.banned;
                 if (message.age != null && message.hasOwnProperty("age"))
                     object.age = message.age;
+                if (message.createdAt != null && message.hasOwnProperty("createdAt"))
+                    if (typeof message.createdAt === "number")
+                        object.createdAt = options.longs === String ? String(message.createdAt) : message.createdAt;
+                    else
+                        object.createdAt = options.longs === String ? $util.Long.prototype.toString.call(message.createdAt) : options.longs === Number ? new $util.LongBits(message.createdAt.low >>> 0, message.createdAt.high >>> 0).toNumber() : message.createdAt;
+                if (message.updatedAt != null && message.hasOwnProperty("updatedAt"))
+                    if (typeof message.updatedAt === "number")
+                        object.updatedAt = options.longs === String ? String(message.updatedAt) : message.updatedAt;
+                    else
+                        object.updatedAt = options.longs === String ? $util.Long.prototype.toString.call(message.updatedAt) : options.longs === Number ? new $util.LongBits(message.updatedAt.low >>> 0, message.updatedAt.high >>> 0).toNumber() : message.updatedAt;
                 return object;
             };
     
             /**
-             * Converts this user to JSON.
+             * Converts this User to JSON.
              * @function toJSON
-             * @memberof database.user
+             * @memberof database.User
              * @instance
              * @returns {Object.<string,*>} JSON object
              */
-            user.prototype.toJSON = function toJSON() {
+            User.prototype.toJSON = function toJSON() {
                 return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
             };
     
-            return user;
+            return User;
         })();
     
-        database.chat = (function() {
+        database.Collection = (function() {
     
             /**
-             * Properties of a chat.
+             * Properties of a Collection.
              * @memberof database
-             * @interface Ichat
-             * @property {boolean|null} [banned] chat banned
-             * @property {boolean|null} [welcome] chat welcome
+             * @interface ICollection
+             * @property {Object.<string,database.IUser>|null} [users] Collection users
              */
     
             /**
-             * Constructs a new chat.
+             * Constructs a new Collection.
              * @memberof database
-             * @classdesc Represents a chat.
-             * @implements Ichat
+             * @classdesc Represents a Collection.
+             * @implements ICollection
              * @constructor
-             * @param {database.Ichat=} [properties] Properties to set
+             * @param {database.ICollection=} [properties] Properties to set
              */
-            function chat(properties) {
-                if (properties)
-                    for (var keys = Object.keys(properties), i = 0; i < keys.length; ++i)
-                        if (properties[keys[i]] != null)
-                            this[keys[i]] = properties[keys[i]];
-            }
-    
-            /**
-             * chat banned.
-             * @member {boolean} banned
-             * @memberof database.chat
-             * @instance
-             */
-            chat.prototype.banned = false;
-    
-            /**
-             * chat welcome.
-             * @member {boolean} welcome
-             * @memberof database.chat
-             * @instance
-             */
-            chat.prototype.welcome = false;
-    
-            /**
-             * Creates a new chat instance using the specified properties.
-             * @function create
-             * @memberof database.chat
-             * @static
-             * @param {database.Ichat=} [properties] Properties to set
-             * @returns {database.chat} chat instance
-             */
-            chat.create = function create(properties) {
-                return new chat(properties);
-            };
-    
-            /**
-             * Encodes the specified chat message. Does not implicitly {@link database.chat.verify|verify} messages.
-             * @function encode
-             * @memberof database.chat
-             * @static
-             * @param {database.Ichat} message chat message or plain object to encode
-             * @param {$protobuf.Writer} [writer] Writer to encode to
-             * @returns {$protobuf.Writer} Writer
-             */
-            chat.encode = function encode(message, writer) {
-                if (!writer)
-                    writer = $Writer.create();
-                if (message.banned != null && Object.hasOwnProperty.call(message, "banned"))
-                    writer.uint32(/* id 1, wireType 0 =*/8).bool(message.banned);
-                if (message.welcome != null && Object.hasOwnProperty.call(message, "welcome"))
-                    writer.uint32(/* id 2, wireType 0 =*/16).bool(message.welcome);
-                return writer;
-            };
-    
-            /**
-             * Encodes the specified chat message, length delimited. Does not implicitly {@link database.chat.verify|verify} messages.
-             * @function encodeDelimited
-             * @memberof database.chat
-             * @static
-             * @param {database.Ichat} message chat message or plain object to encode
-             * @param {$protobuf.Writer} [writer] Writer to encode to
-             * @returns {$protobuf.Writer} Writer
-             */
-            chat.encodeDelimited = function encodeDelimited(message, writer) {
-                return this.encode(message, writer).ldelim();
-            };
-    
-            /**
-             * Decodes a chat message from the specified reader or buffer.
-             * @function decode
-             * @memberof database.chat
-             * @static
-             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
-             * @param {number} [length] Message length if known beforehand
-             * @returns {database.chat} chat
-             * @throws {Error} If the payload is not a reader or valid buffer
-             * @throws {$protobuf.util.ProtocolError} If required fields are missing
-             */
-            chat.decode = function decode(reader, length) {
-                if (!(reader instanceof $Reader))
-                    reader = $Reader.create(reader);
-                var end = length === undefined ? reader.len : reader.pos + length, message = new $root.database.chat();
-                while (reader.pos < end) {
-                    var tag = reader.uint32();
-                    switch (tag >>> 3) {
-                    case 1:
-                        message.banned = reader.bool();
-                        break;
-                    case 2:
-                        message.welcome = reader.bool();
-                        break;
-                    default:
-                        reader.skipType(tag & 7);
-                        break;
-                    }
-                }
-                return message;
-            };
-    
-            /**
-             * Decodes a chat message from the specified reader or buffer, length delimited.
-             * @function decodeDelimited
-             * @memberof database.chat
-             * @static
-             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
-             * @returns {database.chat} chat
-             * @throws {Error} If the payload is not a reader or valid buffer
-             * @throws {$protobuf.util.ProtocolError} If required fields are missing
-             */
-            chat.decodeDelimited = function decodeDelimited(reader) {
-                if (!(reader instanceof $Reader))
-                    reader = new $Reader(reader);
-                return this.decode(reader, reader.uint32());
-            };
-    
-            /**
-             * Verifies a chat message.
-             * @function verify
-             * @memberof database.chat
-             * @static
-             * @param {Object.<string,*>} message Plain object to verify
-             * @returns {string|null} `null` if valid, otherwise the reason why it is not
-             */
-            chat.verify = function verify(message) {
-                if (typeof message !== "object" || message === null)
-                    return "object expected";
-                if (message.banned != null && message.hasOwnProperty("banned"))
-                    if (typeof message.banned !== "boolean")
-                        return "banned: boolean expected";
-                if (message.welcome != null && message.hasOwnProperty("welcome"))
-                    if (typeof message.welcome !== "boolean")
-                        return "welcome: boolean expected";
-                return null;
-            };
-    
-            /**
-             * Creates a chat message from a plain object. Also converts values to their respective internal types.
-             * @function fromObject
-             * @memberof database.chat
-             * @static
-             * @param {Object.<string,*>} object Plain object
-             * @returns {database.chat} chat
-             */
-            chat.fromObject = function fromObject(object) {
-                if (object instanceof $root.database.chat)
-                    return object;
-                var message = new $root.database.chat();
-                if (object.banned != null)
-                    message.banned = Boolean(object.banned);
-                if (object.welcome != null)
-                    message.welcome = Boolean(object.welcome);
-                return message;
-            };
-    
-            /**
-             * Creates a plain object from a chat message. Also converts values to other types if specified.
-             * @function toObject
-             * @memberof database.chat
-             * @static
-             * @param {database.chat} message chat
-             * @param {$protobuf.IConversionOptions} [options] Conversion options
-             * @returns {Object.<string,*>} Plain object
-             */
-            chat.toObject = function toObject(message, options) {
-                if (!options)
-                    options = {};
-                var object = {};
-                if (options.defaults) {
-                    object.banned = false;
-                    object.welcome = false;
-                }
-                if (message.banned != null && message.hasOwnProperty("banned"))
-                    object.banned = message.banned;
-                if (message.welcome != null && message.hasOwnProperty("welcome"))
-                    object.welcome = message.welcome;
-                return object;
-            };
-    
-            /**
-             * Converts this chat to JSON.
-             * @function toJSON
-             * @memberof database.chat
-             * @instance
-             * @returns {Object.<string,*>} JSON object
-             */
-            chat.prototype.toJSON = function toJSON() {
-                return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
-            };
-    
-            return chat;
-        })();
-    
-        database.config = (function() {
-    
-            /**
-             * Properties of a config.
-             * @memberof database
-             * @interface Iconfig
-             * @property {boolean|null} [autoRead] config autoRead
-             */
-    
-            /**
-             * Constructs a new config.
-             * @memberof database
-             * @classdesc Represents a config.
-             * @implements Iconfig
-             * @constructor
-             * @param {database.Iconfig=} [properties] Properties to set
-             */
-            function config(properties) {
-                if (properties)
-                    for (var keys = Object.keys(properties), i = 0; i < keys.length; ++i)
-                        if (properties[keys[i]] != null)
-                            this[keys[i]] = properties[keys[i]];
-            }
-    
-            /**
-             * config autoRead.
-             * @member {boolean} autoRead
-             * @memberof database.config
-             * @instance
-             */
-            config.prototype.autoRead = false;
-    
-            /**
-             * Creates a new config instance using the specified properties.
-             * @function create
-             * @memberof database.config
-             * @static
-             * @param {database.Iconfig=} [properties] Properties to set
-             * @returns {database.config} config instance
-             */
-            config.create = function create(properties) {
-                return new config(properties);
-            };
-    
-            /**
-             * Encodes the specified config message. Does not implicitly {@link database.config.verify|verify} messages.
-             * @function encode
-             * @memberof database.config
-             * @static
-             * @param {database.Iconfig} message config message or plain object to encode
-             * @param {$protobuf.Writer} [writer] Writer to encode to
-             * @returns {$protobuf.Writer} Writer
-             */
-            config.encode = function encode(message, writer) {
-                if (!writer)
-                    writer = $Writer.create();
-                if (message.autoRead != null && Object.hasOwnProperty.call(message, "autoRead"))
-                    writer.uint32(/* id 1, wireType 0 =*/8).bool(message.autoRead);
-                return writer;
-            };
-    
-            /**
-             * Encodes the specified config message, length delimited. Does not implicitly {@link database.config.verify|verify} messages.
-             * @function encodeDelimited
-             * @memberof database.config
-             * @static
-             * @param {database.Iconfig} message config message or plain object to encode
-             * @param {$protobuf.Writer} [writer] Writer to encode to
-             * @returns {$protobuf.Writer} Writer
-             */
-            config.encodeDelimited = function encodeDelimited(message, writer) {
-                return this.encode(message, writer).ldelim();
-            };
-    
-            /**
-             * Decodes a config message from the specified reader or buffer.
-             * @function decode
-             * @memberof database.config
-             * @static
-             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
-             * @param {number} [length] Message length if known beforehand
-             * @returns {database.config} config
-             * @throws {Error} If the payload is not a reader or valid buffer
-             * @throws {$protobuf.util.ProtocolError} If required fields are missing
-             */
-            config.decode = function decode(reader, length) {
-                if (!(reader instanceof $Reader))
-                    reader = $Reader.create(reader);
-                var end = length === undefined ? reader.len : reader.pos + length, message = new $root.database.config();
-                while (reader.pos < end) {
-                    var tag = reader.uint32();
-                    switch (tag >>> 3) {
-                    case 1:
-                        message.autoRead = reader.bool();
-                        break;
-                    default:
-                        reader.skipType(tag & 7);
-                        break;
-                    }
-                }
-                return message;
-            };
-    
-            /**
-             * Decodes a config message from the specified reader or buffer, length delimited.
-             * @function decodeDelimited
-             * @memberof database.config
-             * @static
-             * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
-             * @returns {database.config} config
-             * @throws {Error} If the payload is not a reader or valid buffer
-             * @throws {$protobuf.util.ProtocolError} If required fields are missing
-             */
-            config.decodeDelimited = function decodeDelimited(reader) {
-                if (!(reader instanceof $Reader))
-                    reader = new $Reader(reader);
-                return this.decode(reader, reader.uint32());
-            };
-    
-            /**
-             * Verifies a config message.
-             * @function verify
-             * @memberof database.config
-             * @static
-             * @param {Object.<string,*>} message Plain object to verify
-             * @returns {string|null} `null` if valid, otherwise the reason why it is not
-             */
-            config.verify = function verify(message) {
-                if (typeof message !== "object" || message === null)
-                    return "object expected";
-                if (message.autoRead != null && message.hasOwnProperty("autoRead"))
-                    if (typeof message.autoRead !== "boolean")
-                        return "autoRead: boolean expected";
-                return null;
-            };
-    
-            /**
-             * Creates a config message from a plain object. Also converts values to their respective internal types.
-             * @function fromObject
-             * @memberof database.config
-             * @static
-             * @param {Object.<string,*>} object Plain object
-             * @returns {database.config} config
-             */
-            config.fromObject = function fromObject(object) {
-                if (object instanceof $root.database.config)
-                    return object;
-                var message = new $root.database.config();
-                if (object.autoRead != null)
-                    message.autoRead = Boolean(object.autoRead);
-                return message;
-            };
-    
-            /**
-             * Creates a plain object from a config message. Also converts values to other types if specified.
-             * @function toObject
-             * @memberof database.config
-             * @static
-             * @param {database.config} message config
-             * @param {$protobuf.IConversionOptions} [options] Conversion options
-             * @returns {Object.<string,*>} Plain object
-             */
-            config.toObject = function toObject(message, options) {
-                if (!options)
-                    options = {};
-                var object = {};
-                if (options.defaults)
-                    object.autoRead = false;
-                if (message.autoRead != null && message.hasOwnProperty("autoRead"))
-                    object.autoRead = message.autoRead;
-                return object;
-            };
-    
-            /**
-             * Converts this config to JSON.
-             * @function toJSON
-             * @memberof database.config
-             * @instance
-             * @returns {Object.<string,*>} JSON object
-             */
-            config.prototype.toJSON = function toJSON() {
-                return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
-            };
-    
-            return config;
-        })();
-    
-        database.collection = (function() {
-    
-            /**
-             * Properties of a collection.
-             * @memberof database
-             * @interface Icollection
-             * @property {Object.<string,database.Iuser>|null} [users] collection users
-             * @property {Object.<string,database.Ichat>|null} [chats] collection chats
-             * @property {Object.<string,database.Iconfig>|null} [settings] collection settings
-             */
-    
-            /**
-             * Constructs a new collection.
-             * @memberof database
-             * @classdesc Represents a collection.
-             * @implements Icollection
-             * @constructor
-             * @param {database.Icollection=} [properties] Properties to set
-             */
-            function collection(properties) {
+            function Collection(properties) {
                 this.users = {};
-                this.chats = {};
-                this.settings = {};
                 if (properties)
                     for (var keys = Object.keys(properties), i = 0; i < keys.length; ++i)
                         if (properties[keys[i]] != null)
@@ -684,99 +399,73 @@
             }
     
             /**
-             * collection users.
-             * @member {Object.<string,database.Iuser>} users
-             * @memberof database.collection
+             * Collection users.
+             * @member {Object.<string,database.IUser>} users
+             * @memberof database.Collection
              * @instance
              */
-            collection.prototype.users = $util.emptyObject;
+            Collection.prototype.users = $util.emptyObject;
     
             /**
-             * collection chats.
-             * @member {Object.<string,database.Ichat>} chats
-             * @memberof database.collection
-             * @instance
-             */
-            collection.prototype.chats = $util.emptyObject;
-    
-            /**
-             * collection settings.
-             * @member {Object.<string,database.Iconfig>} settings
-             * @memberof database.collection
-             * @instance
-             */
-            collection.prototype.settings = $util.emptyObject;
-    
-            /**
-             * Creates a new collection instance using the specified properties.
+             * Creates a new Collection instance using the specified properties.
              * @function create
-             * @memberof database.collection
+             * @memberof database.Collection
              * @static
-             * @param {database.Icollection=} [properties] Properties to set
-             * @returns {database.collection} collection instance
+             * @param {database.ICollection=} [properties] Properties to set
+             * @returns {database.Collection} Collection instance
              */
-            collection.create = function create(properties) {
-                return new collection(properties);
+            Collection.create = function create(properties) {
+                return new Collection(properties);
             };
     
             /**
-             * Encodes the specified collection message. Does not implicitly {@link database.collection.verify|verify} messages.
+             * Encodes the specified Collection message. Does not implicitly {@link database.Collection.verify|verify} messages.
              * @function encode
-             * @memberof database.collection
+             * @memberof database.Collection
              * @static
-             * @param {database.Icollection} message collection message or plain object to encode
+             * @param {database.ICollection} message Collection message or plain object to encode
              * @param {$protobuf.Writer} [writer] Writer to encode to
              * @returns {$protobuf.Writer} Writer
              */
-            collection.encode = function encode(message, writer) {
+            Collection.encode = function encode(message, writer) {
                 if (!writer)
                     writer = $Writer.create();
                 if (message.users != null && Object.hasOwnProperty.call(message, "users"))
                     for (var keys = Object.keys(message.users), i = 0; i < keys.length; ++i) {
                         writer.uint32(/* id 1, wireType 2 =*/10).fork().uint32(/* id 1, wireType 2 =*/10).string(keys[i]);
-                        $root.database.user.encode(message.users[keys[i]], writer.uint32(/* id 2, wireType 2 =*/18).fork()).ldelim().ldelim();
-                    }
-                if (message.chats != null && Object.hasOwnProperty.call(message, "chats"))
-                    for (var keys = Object.keys(message.chats), i = 0; i < keys.length; ++i) {
-                        writer.uint32(/* id 2, wireType 2 =*/18).fork().uint32(/* id 1, wireType 2 =*/10).string(keys[i]);
-                        $root.database.chat.encode(message.chats[keys[i]], writer.uint32(/* id 2, wireType 2 =*/18).fork()).ldelim().ldelim();
-                    }
-                if (message.settings != null && Object.hasOwnProperty.call(message, "settings"))
-                    for (var keys = Object.keys(message.settings), i = 0; i < keys.length; ++i) {
-                        writer.uint32(/* id 3, wireType 2 =*/26).fork().uint32(/* id 1, wireType 2 =*/10).string(keys[i]);
-                        $root.database.config.encode(message.settings[keys[i]], writer.uint32(/* id 2, wireType 2 =*/18).fork()).ldelim().ldelim();
+                        $root.database.User.encode(message.users[keys[i]], writer.uint32(/* id 2, wireType 2 =*/18).fork()).ldelim().ldelim();
                     }
                 return writer;
             };
     
             /**
-             * Encodes the specified collection message, length delimited. Does not implicitly {@link database.collection.verify|verify} messages.
+             * Encodes the specified Collection message, length delimited. Does not implicitly {@link database.Collection.verify|verify} messages.
              * @function encodeDelimited
-             * @memberof database.collection
+             * @memberof database.Collection
              * @static
-             * @param {database.Icollection} message collection message or plain object to encode
+             * @param {database.ICollection} message Collection message or plain object to encode
              * @param {$protobuf.Writer} [writer] Writer to encode to
              * @returns {$protobuf.Writer} Writer
              */
-            collection.encodeDelimited = function encodeDelimited(message, writer) {
+            Collection.encodeDelimited = function encodeDelimited(message, writer) {
                 return this.encode(message, writer).ldelim();
             };
     
             /**
-             * Decodes a collection message from the specified reader or buffer.
+             * Decodes a Collection message from the specified reader or buffer.
              * @function decode
-             * @memberof database.collection
+             * @memberof database.Collection
              * @static
              * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
              * @param {number} [length] Message length if known beforehand
-             * @returns {database.collection} collection
+             * @returns {database.Collection} Collection
              * @throws {Error} If the payload is not a reader or valid buffer
              * @throws {$protobuf.util.ProtocolError} If required fields are missing
              */
-            collection.decode = function decode(reader, length) {
+            Collection.decode = function decode(reader, length) {
                 if (!(reader instanceof $Reader))
                     reader = $Reader.create(reader);
-                var end = length === undefined ? reader.len : reader.pos + length, message = new $root.database.collection(), key, value;
+                var end = length === undefined ? reader.len : reader.pos + length, message = new $root.database.Collection(), key, value;
                 while (reader.pos < end) {
                     var tag = reader.uint32();
                     switch (tag >>> 3) {
@@ -793,7 +482,7 @@
                                 key = reader.string();
                                 break;
                             case 2:
-                                value = $root.database.user.decode(reader, reader.uint32());
+                                value = $root.database.User.decode(reader, reader.uint32());
                                 break;
                             default:
                                 reader.skipType(tag2 & 7);
@@ -801,50 +490,6 @@
                             }
                         }
                         message.users[key] = value;
-                        break;
-                    case 2:
-                        if (message.chats === $util.emptyObject)
-                            message.chats = {};
-                        var end2 = reader.uint32() + reader.pos;
-                        key = "";
-                        value = null;
-                        while (reader.pos < end2) {
-                            var tag2 = reader.uint32();
-                            switch (tag2 >>> 3) {
-                            case 1:
-                                key = reader.string();
-                                break;
-                            case 2:
-                                value = $root.database.chat.decode(reader, reader.uint32());
-                                break;
-                            default:
-                                reader.skipType(tag2 & 7);
-                                break;
-                            }
-                        }
-                        message.chats[key] = value;
-                        break;
-                    case 3:
-                        if (message.settings === $util.emptyObject)
-                            message.settings = {};
-                        var end2 = reader.uint32() + reader.pos;
-                        key = "";
-                        value = null;
-                        while (reader.pos < end2) {
-                            var tag2 = reader.uint32();
-                            switch (tag2 >>> 3) {
-                            case 1:
-                                key = reader.string();
-                                break;
-                            case 2:
-                                value = $root.database.config.decode(reader, reader.uint32());
-                                break;
-                            default:
-                                reader.skipType(tag2 & 7);
-                                break;
-                            }
-                        }
-                        message.settings[key] = value;
                         break;
                     default:
                         reader.skipType(tag & 7);
@@ -855,30 +500,30 @@
             };
     
             /**
-             * Decodes a collection message from the specified reader or buffer, length delimited.
+             * Decodes a Collection message from the specified reader or buffer, length delimited.
              * @function decodeDelimited
-             * @memberof database.collection
+             * @memberof database.Collection
              * @static
              * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
-             * @returns {database.collection} collection
+             * @returns {database.Collection} Collection
              * @throws {Error} If the payload is not a reader or valid buffer
              * @throws {$protobuf.util.ProtocolError} If required fields are missing
              */
-            collection.decodeDelimited = function decodeDelimited(reader) {
+            Collection.decodeDelimited = function decodeDelimited(reader) {
                 if (!(reader instanceof $Reader))
                     reader = new $Reader(reader);
                 return this.decode(reader, reader.uint32());
             };
     
             /**
-             * Verifies a collection message.
+             * Verifies a Collection message.
              * @function verify
-             * @memberof database.collection
+             * @memberof database.Collection
              * @static
              * @param {Object.<string,*>} message Plain object to verify
              * @returns {string|null} `null` if valid, otherwise the reason why it is not
              */
-            collection.verify = function verify(message) {
+            Collection.verify = function verify(message) {
                 if (typeof message !== "object" || message === null)
                     return "object expected";
                 if (message.users != null && message.hasOwnProperty("users")) {
@@ -886,128 +531,75 @@
                         return "users: object expected";
                     var key = Object.keys(message.users);
                     for (var i = 0; i < key.length; ++i) {
-                        var error = $root.database.user.verify(message.users[key[i]]);
+                        var error = $root.database.User.verify(message.users[key[i]]);
                         if (error)
                             return "users." + error;
-                    }
-                }
-                if (message.chats != null && message.hasOwnProperty("chats")) {
-                    if (!$util.isObject(message.chats))
-                        return "chats: object expected";
-                    var key = Object.keys(message.chats);
-                    for (var i = 0; i < key.length; ++i) {
-                        var error = $root.database.chat.verify(message.chats[key[i]]);
-                        if (error)
-                            return "chats." + error;
-                    }
-                }
-                if (message.settings != null && message.hasOwnProperty("settings")) {
-                    if (!$util.isObject(message.settings))
-                        return "settings: object expected";
-                    var key = Object.keys(message.settings);
-                    for (var i = 0; i < key.length; ++i) {
-                        var error = $root.database.config.verify(message.settings[key[i]]);
-                        if (error)
-                            return "settings." + error;
                     }
                 }
                 return null;
             };
     
             /**
-             * Creates a collection message from a plain object. Also converts values to their respective internal types.
+             * Creates a Collection message from a plain object. Also converts values to their respective internal types.
              * @function fromObject
-             * @memberof database.collection
+             * @memberof database.Collection
              * @static
              * @param {Object.<string,*>} object Plain object
-             * @returns {database.collection} collection
+             * @returns {database.Collection} Collection
              */
-            collection.fromObject = function fromObject(object) {
-                if (object instanceof $root.database.collection)
+            Collection.fromObject = function fromObject(object) {
+                if (object instanceof $root.database.Collection)
                     return object;
-                var message = new $root.database.collection();
+                var message = new $root.database.Collection();
                 if (object.users) {
                     if (typeof object.users !== "object")
-                        throw TypeError(".database.collection.users: object expected");
+                        throw TypeError(".database.Collection.users: object expected");
                     message.users = {};
                     for (var keys = Object.keys(object.users), i = 0; i < keys.length; ++i) {
                         if (typeof object.users[keys[i]] !== "object")
-                            throw TypeError(".database.collection.users: object expected");
-                        message.users[keys[i]] = $root.database.user.fromObject(object.users[keys[i]]);
-                    }
-                }
-                if (object.chats) {
-                    if (typeof object.chats !== "object")
-                        throw TypeError(".database.collection.chats: object expected");
-                    message.chats = {};
-                    for (var keys = Object.keys(object.chats), i = 0; i < keys.length; ++i) {
-                        if (typeof object.chats[keys[i]] !== "object")
-                            throw TypeError(".database.collection.chats: object expected");
-                        message.chats[keys[i]] = $root.database.chat.fromObject(object.chats[keys[i]]);
-                    }
-                }
-                if (object.settings) {
-                    if (typeof object.settings !== "object")
-                        throw TypeError(".database.collection.settings: object expected");
-                    message.settings = {};
-                    for (var keys = Object.keys(object.settings), i = 0; i < keys.length; ++i) {
-                        if (typeof object.settings[keys[i]] !== "object")
-                            throw TypeError(".database.collection.settings: object expected");
-                        message.settings[keys[i]] = $root.database.config.fromObject(object.settings[keys[i]]);
+                            throw TypeError(".database.Collection.users: object expected");
+                        message.users[keys[i]] = $root.database.User.fromObject(object.users[keys[i]]);
                     }
                 }
                 return message;
             };
     
             /**
-             * Creates a plain object from a collection message. Also converts values to other types if specified.
+             * Creates a plain object from a Collection message. Also converts values to other types if specified.
              * @function toObject
-             * @memberof database.collection
+             * @memberof database.Collection
              * @static
-             * @param {database.collection} message collection
+             * @param {database.Collection} message Collection
              * @param {$protobuf.IConversionOptions} [options] Conversion options
              * @returns {Object.<string,*>} Plain object
              */
-            collection.toObject = function toObject(message, options) {
+            Collection.toObject = function toObject(message, options) {
                 if (!options)
                     options = {};
                 var object = {};
-                if (options.objects || options.defaults) {
+                if (options.objects || options.defaults)
                     object.users = {};
-                    object.chats = {};
-                    object.settings = {};
-                }
                 var keys2;
                 if (message.users && (keys2 = Object.keys(message.users)).length) {
                     object.users = {};
                     for (var j = 0; j < keys2.length; ++j)
-                        object.users[keys2[j]] = $root.database.user.toObject(message.users[keys2[j]], options);
-                }
-                if (message.chats && (keys2 = Object.keys(message.chats)).length) {
-                    object.chats = {};
-                    for (var j = 0; j < keys2.length; ++j)
-                        object.chats[keys2[j]] = $root.database.chat.toObject(message.chats[keys2[j]], options);
-                }
-                if (message.settings && (keys2 = Object.keys(message.settings)).length) {
-                    object.settings = {};
-                    for (var j = 0; j < keys2.length; ++j)
-                        object.settings[keys2[j]] = $root.database.config.toObject(message.settings[keys2[j]], options);
+                        object.users[keys2[j]] = $root.database.User.toObject(message.users[keys2[j]], options);
                 }
                 return object;
             };
     
             /**
-             * Converts this collection to JSON.
+             * Converts this Collection to JSON.
              * @function toJSON
-             * @memberof database.collection
+             * @memberof database.Collection
              * @instance
              * @returns {Object.<string,*>} JSON object
              */
-            collection.prototype.toJSON = function toJSON() {
+            Collection.prototype.toJSON = function toJSON() {
                 return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
             };
     
-            return collection;
+            return Collection;
         })();
     
         return database;

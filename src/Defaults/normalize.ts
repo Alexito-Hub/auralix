@@ -1,4 +1,4 @@
-import { jidNormalizedUser, proto, getContentType, extractMessageContent } from "@nazi-team/baileys";
+import { jidNormalizedUser, proto, getContentType, extractMessageContent } from "@whiskeysockets/baileys";
 import { AuralixSocket } from "./core";
 import config from "../config"
 
@@ -23,18 +23,9 @@ export async function Sms(sock: AuralixSocket, m: any): Promise<any> {
         m.isMe = m.key.fromMe
         m.isGroup = m.from.endsWith("@g.us")
         m.isChat = m.from.endsWith("@s.whatsapp.net")
-        m.isNewsletter = m.from.endsWith("@newsletter")
         m.sender = jidNormalizedUser(m.key.participant || m.key.remoteJid)
         m.number = m.sender.replace("@s.whatsapp.net", "")
-        m.pushName = m.pushName || "Sin Nombre"
-        m.isOwner = m.isMe || (m.number === config.owner.number) || (config.mods.some((i: string) => i === m.number))
-        if (m.isGroup && !m.isNewsletter) {
-            m.metadata = m.from.endsWith("@g.us") ? await sock.groupMetadata(m.from) : false
-            m.admins = m.from.endsWith("@g.us") ? m.metadata.participants.filter((i: any) => i.admin == "admin" || i.admin == "superadmin").map((i: any) => i.id) : false
-            m.isAdmin = m.from.endsWith("@g.us") ? m.admins.includes(m.sender) : false
-            m.isBotAdmin = m.from.endsWith("@g.us") && sock.user ? m.admins.includes(sock.user.id) : false
-        }
-    };
+    }
 
     if (m.message) {
         m.type = getContentType(m.message)
@@ -47,25 +38,6 @@ export async function Sms(sock: AuralixSocket, m: any): Promise<any> {
         m.args = typeof m.body === 'string' ? m.body.trim().split(/\s+/).slice(m.cmd ? 1 : 0) : []
         m.text = Array.isArray(m.args) ? m.args.join(" ") : ""
 
-        let protocolMessageKey: any
-        if (m.type == 'protocolMessage' && m.msg?.key) {
-            protocolMessageKey = m.msg.key
-            if (protocolMessageKey == 'status@broadcast') protocolMessageKey.remoteJid = m.from
-            if (!protocolMessageKey.participant || protocolMessageKey.participant == 'status_me') protocolMessageKey.participant = m.sender
-            protocolMessageKey.fromMe = sock.user && protocolMessageKey.participant === sock.user.id
-            if (!protocolMessageKey.fromMe && protocolMessageKey.remoteJid === (sock.user && sock.user.id)) protocolMessageKey.remoteJid = m.sender
-        }
-
-        if (protocolMessageKey && m.type == 'protocolMessage') {
-            sock.ev.emit('messages.delete', { keys: [protocolMessageKey] })
-        }
-
-        let quotedMention = m.msg?.contextInfo != null ? m.msg.contextInfo?.participant : ''
-        let tagMention = m.msg?.contextInfo != undefined ? m.msg.contextInfo?.mentionedJid : []
-        let mention = typeof (tagMention) == 'string' ? [tagMention] : tagMention
-        if (mention != undefined && quotedMention) mention.push(quotedMention)
-
-        m.mentionedJid = mention != undefined ? mention.filter((x: string) => x) : []
         m.delete = () => sock.sendMessage(m.from, { delete: m.key })
         m.react = (emoji: string) => sock.sendMessage(m.from, { react: { text: emoji, key: m.key } })
         m.download = () => undefined

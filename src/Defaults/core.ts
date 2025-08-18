@@ -2,7 +2,7 @@ import makeWASocket, {
     GroupMetadata,
     UserFacingSocketConfig,
     WASocket as BaileysSocket
-} from "@nazi-team/baileys"
+} from "@whiskeysockets/baileys"
 
 export const groupMetadata = new Map<string, GroupMetadata>()
 
