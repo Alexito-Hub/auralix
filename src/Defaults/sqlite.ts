@@ -3,12 +3,19 @@ import { Database, open } from "sqlite";
 import { performance } from 'perf_hooks';
 import { Logger } from "pino";
 import { AuthenticationState, BufferJSON, initAuthCreds, proto } from '@whiskeysockets/baileys';
+import fs from 'fs';
+import path from 'path';
 
 export default new class SQLite {
     private instance: Database | null = null;
 
     async getDatabaseConnection(filename: string, customLogger: Logger): Promise<Database> {
         if (this.instance) return this.instance;
+
+        const dir = path.dirname(filename);
+        if (!fs.existsSync(dir)) {
+            fs.mkdirSync(dir, { recursive: true });
+        }
 
         this.instance = await open({
             filename: filename,

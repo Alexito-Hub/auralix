@@ -3,6 +3,8 @@ export default {
     description: "Carga el menú de comandos",
     command: ["menu"],
     exec: async (m: any, { sock }: { sock: any }) => {
-        
+        sock.sendMessage(m.from, {
+            text: "Bitch"
+        })
     }
 }

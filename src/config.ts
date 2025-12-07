@@ -1,8 +1,6 @@
-import Plugins from "./Defaults/plugin"
-
 const config = {
     owner: {
-        number: "51968374620"
+        number: "51945879945"
     },
     bot: {
         name: "Auralix",
