@@ -8,7 +8,7 @@ const config = {
         version: "1.0.0-preview"
     },
     mods: [],
-    prefix: ["@"]
+    prefix: ["@", "!", ""]
 }
 
 export default config

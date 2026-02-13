@@ -28,7 +28,6 @@ const start = async (): Promise<void> => {
     let auralix = WASocket({
         auth: { creds: state.creds as AuthenticationCreds, keys: makeCacheableSignalKeyStore(state.keys, pino({ level: 'debug' })) },
         cachedGroupMetadata: async (jid: string) => groupMetadata.get(jid),
-        logger: logger,
         version: version
     })
 
