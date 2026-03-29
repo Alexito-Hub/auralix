@@ -1,109 +1,72 @@
 import Database from 'better-sqlite3';
-import { Logger } from 'pino';
-import P from 'pino';
-import { performance } from 'perf_hooks';
 import * as Proto from '../../proto/database';
 import fs from 'fs';
+import path from 'path';
 
-export const profiling = (name: string, func: () => any, logger: Logger) => {
-    const start = performance.now()
-    func()
-    const end = performance.now()
-    logger.info(`${name} took ${(end - start).toFixed(2)}ms`)
-};
+export class Db {
+    public data: Proto.database.ICollection;
+    private db: Database.Database;
+    private q: Record<string, Database.Statement> = {};
+    private c = 0;
+    constructor(p: string) {
+        const d = path.dirname(p);
+        if (!fs.existsSync(d)) fs.mkdirSync(d, { recursive: true });
 
-export class database {
-    public logger: Logger
-    public path: string
-    public data: Proto.database.ICollection
-    public needProfiling: boolean
-    private db: Database.Database
-
-    /**
-     * Creates a new database instance.
-     *
-     * @param {Object} [options] - The options to use.
-     * @param {string} [options.path] - The path to the SQLite database file.
-     * @param {Logger} [options.logger] - The logger to use.
-     * @param {boolean} [options.needProfiling] - Whether to profile the read operation.
-     */
-    constructor({ path, logger, needProfiling }: { path: string, logger: Logger, needProfiling: boolean }) {
-        this.path = path
-        this.logger = logger
-        this.data = Proto.database.Collection.create({
-            users: {}
-        });
-
-        this.needProfiling = needProfiling;
-
-        const dir = require('path').dirname(path)
-        if (!fs.existsSync(dir)) {
-            fs.mkdirSync(dir, { recursive: true })
-        }
-
-        this.db = new Database(path)
+        this.db = new Database(p);
         this.db.exec(`
             PRAGMA journal_mode = WAL;
-            PRAGMA synchronous = NORMAL;
-            PRAGMA temp_store = MEMORY;
-            PRAGMA mmap_size = 268435456;
-            PRAGMA cache_size = -64000;
-            CREATE TABLE IF NOT EXISTS storage (
-                id INTEGER PRIMARY KEY,
-                data BLOB
-            );
+            CREATE TABLE IF NOT EXISTS store (id INTEGER PRIMARY KEY, data BLOB);
+            CREATE TABLE IF NOT EXISTS msgs (id TEXT PRIMARY KEY, jid TEXT, me INTEGER, part TEXT, json TEXT, ts INTEGER);
+            CREATE INDEX IF NOT EXISTS idx_ts ON msgs (ts);
         `);
 
-        if (this.needProfiling) {
-            profiling('read', this.read.bind(this), this.logger);
-        } else {
-            this.read.bind(this)();
-        }
+        this.q.s = this.db.prepare('INSERT OR REPLACE INTO msgs VALUES (?, ?, ?, ?, ?, ?)'); // s = save
+        this.q.m = this.db.prepare('SELECT json FROM msgs WHERE id = ?'); // m = get msg
+        this.q.p = this.db.prepare('DELETE FROM msgs WHERE id IN (SELECT id FROM msgs ORDER BY ts ASC LIMIT 100)'); // p = prune
+        this.q.c = this.db.prepare('SELECT COUNT(*) as c FROM msgs'); // c = count
+        this.q.w = this.db.prepare('INSERT OR REPLACE INTO store (id, data) VALUES (1, ?)'); // w = write storage
+        this.q.r = this.db.prepare('SELECT data FROM storage WHERE id = 1'); // r = read storage
 
-        logger.info(`Database in archive ${path} initialized`);
+        this.data = Proto.database.Collection.create({ users: {}, groups: {} });
+        this.read();
     }
 
-    /**
-     * Reads data from the database archive.
-     * If the data is already in cache, it reads from there.
-     * If not, it reads from the database file.
-     */
-    public async read() {
-        this.logger.info("Trying to decode data");
-        try {
-            const row: any = this.db.prepare('SELECT data FROM storage WHERE id = ?').get(1);
-            if (row) {
-                const buffer = row.data as Buffer;
-                this.data = Proto.database.Collection.decode(buffer);
-                this.logger.info(`Database in archive ${this.path} read from cache (Size: ${buffer.length} bytes)`);
-            }
-        } catch (error) {
-            this.logger.error(error);
-        }
+    public read() {
+        const row = this.q.r.get() as { data: Buffer } | undefined;
+        if (row) this.data = Proto.database.Collection.decode(row.data);
     }
 
-    /**
-     * Writes data to the database archive.
-     * If this.needProfiling is true, it will profile the write operation and log the time it took.
-     * If not, it will just write.
-     */
-    public async write() {
-        try {
-            const writeOperation = () => {
-                const writer = Proto.database.Collection.encode(this.data);
-                const buffer = writer.finish();
-                this.db.transaction(() => {
-                    this.db.prepare('INSERT OR REPLACE INTO storage (id, data) VALUES (?, ?)').run(1, Buffer.from(buffer));
-                })();
-            }
+    public write() {
+        const buf = Proto.database.Collection.encode(this.data).finish();
+        this.q.w.run(Buffer.from(buf));
+    }
 
-            if (this.needProfiling) profiling('write', writeOperation, this.logger);
-            else await writeOperation();
-            this.logger.info(`Database in archive ${this.path} written`);
-        } catch (error) {
-            this.logger.error(error);
-        }
+    public saveMessage(m: any) {
+        try {
+            this.q.s.run(m.key.id, m.key.remoteJid, m.key.fromMe ? 1 : 0, m.key.participant || '', JSON.stringify(m.message), m.messageTimestamp || Math.floor(Date.now() / 1000));
+            if (++this.c >= 50) {
+                this.c = 0;
+                if ((this.q.c.get() as any).c > 1000) this.q.p.run();
+            }
+        } catch {}
+    }
+
+    public getMessage(id: string) {
+        const row = this.q.m.get(id) as { json: string } | undefined;
+        return row ? JSON.parse(row.json) : null;
+    }
+
+    public user(id: string, name = 'User') {
+        if (!this.data.users) this.data.users = {};
+        if (!this.data.users[id]) this.data.users[id] = { name, coins: 0, xp: 0, level: 1, warns: 0, createdAt: Date.now(), updatedAt: Date.now() };
+        return this.data.users[id];
+    }
+
+    public group(id: string) {
+        if (!this.data.groups) this.data.groups = {};
+        if (!this.data.groups[id]) this.data.groups[id] = { prefix: '@', welcome: '', bye: '', mute: false, antilink: false, welcomeEnabled: false };
+        return this.data.groups[id];
     }
 }
 
-export const db = new database({ path: './src/Database/database.db', logger: P({ level: 'silent' }), needProfiling: true })
+export const db = new Db('./src/Database/database.db');

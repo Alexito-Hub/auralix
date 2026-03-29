@@ -11,3 +11,6 @@ auth.db-wal
 src/Database/database.db
 src/Database/database.db-shm
 src/Database/database.db-wal
+
+proto/database.d.ts
+proto/database.js

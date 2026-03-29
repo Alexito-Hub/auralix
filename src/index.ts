@@ -11,29 +11,34 @@ import pino, { Logger } from "pino";
 
 import plugins from "./Defaults/plugin";
 import { Sms } from "./Defaults/normalize"
-import { groupMetadata, WASocket } from "./Defaults/core"
+import { groups, Sock } from "./Defaults/core"
 import SQLite from "./Defaults/sqlite"
 import { db } from "./Database/database"
 import wconnect from "./Utils/auth";
 import Request from "./Scraper/Request";
+import config from "./config";
 
 const start = async (): Promise<void> => {
     const DEFAULT_CACHE_NAME = "open"
     let retries = 0
-    const session = new Map<string, ReturnType<typeof WASocket>>()
+    const session = new Map<string, ReturnType<typeof Sock>>()
     const logger: Logger = pino({ level: "silent" })
     let { state, saveCreds } = await SQLite.AuthState('socket', 'Auth/auth.db', logger)
 
     let { version } = await fetchLatestBaileysVersion()
-    let auralix = WASocket({
+    let auralix = Sock({
         auth: { creds: state.creds as AuthenticationCreds, keys: makeCacheableSignalKeyStore(state.keys, pino({ level: 'debug' })) },
-        cachedGroupMetadata: async (jid: string) => groupMetadata.get(jid),
+        cachedGroupMetadata: async (jid: string) => groups.get(jid),
         logger: logger,
         version: version
     })
-
     await plugins.load()
-    await db.read()
+    db.read()
+
+    setInterval(() => {
+        db.write()
+    }, 30000)
+
     auralix?.ev.process(async (ev: Partial<BaileysEventMap>) => {
         if (!ev) return
         if (ev['creds.update']) await saveCreds()
@@ -47,6 +52,7 @@ const start = async (): Promise<void> => {
 
             switch (connection) {
                 case 'open':
+                    console.log('[ + ] Conexión abierta')
                     return
                 case 'close': {
                     const reason = new Boom(lastDisconnect?.error).output.statusCode
@@ -90,7 +96,27 @@ const start = async (): Promise<void> => {
         if (ev["messages.upsert"]) {
             for (const message of ev["messages.upsert"].messages) {
                 if (ev["messages.upsert"].type === "notify" && message.message) {
+                    db.saveMessage(message)
+
                     const m = await Sms(auralix, message)
+
+                    if (m.type === 'protocolMessage' && m.msg.type === 0) {
+                        const key = m.msg.key
+                        const oldMsg = db.getMessage(key.id)
+                        if (oldMsg) {
+                            await auralix.sendMessage(m.from, { text: `[ ANTI-DELETE ]\nDe: @${key.participant.split('@')[0]}\n\nMensaje borrado:\n${JSON.stringify(oldMsg, null, 2)}`, mentions: [key.participant] })
+                        }
+                    }
+
+                    if (m.user && !m.isBot) {
+                        m.user.xp += Math.floor(Math.random() * 10)
+                        m.user.coins += 5
+                        if (m.user.xp >= m.user.level * 100) {
+                            m.user.level += 1
+                            m.user.xp = 0
+                            await m.reply(`¡Felicidades @${m.sender.split('@')[0]}! Has subido al nivel ${m.user.level}`, { mentions: [m.sender] })
+                        }
+                    }
 
                     let args = {
                         sock: auralix,

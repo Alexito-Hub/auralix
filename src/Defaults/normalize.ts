@@ -1,6 +1,7 @@
-import { jidNormalizedUser, proto, getContentType, extractMessageContent } from "@whiskeysockets/baileys";
+import { jidNormalizedUser, proto, getContentType, extractMessageContent, normalizeMessageContent } from "@whiskeysockets/baileys";
 import { AuralixSocket } from "./core";
 import config from "../config"
+import { db } from "../Database/database"
 
 export async function Sms(sock: AuralixSocket, m: any): Promise<any> {
     if (!m) return
@@ -8,12 +9,12 @@ export async function Sms(sock: AuralixSocket, m: any): Promise<any> {
     const message = m as proto.IWebMessageInfo & { id?: string; from?: string; body?: string }
 
     if (m.key.remoteJid == "status@broadcast" || m.broadcast || !m.message) return
-    if (m.key.id.startsWith("NZT") || m.key.id.startsWith("BAE5")) return
+    if (m.key.id.startsWith("NZT")) return
 
-    m.message = (Object.keys(m.message)[0] == "ephemeralMessage") ? m.message["ephemeralMessage"].message : (Object.keys(m.message)[0] == "viewOnceMessageV2") ? m.message["viewOnceMessageV2"].message : (Object.keys(m.message)[0] == "documentWithCaptionMessage") ? m.message["documentWithCaptionMessage"].message : (Object.keys(m.message)[0] == "ptvMessage") ? { videoMessage: m.message["ptvMessage"] } : m.message
+    m.message = normalizeMessageContent(m.message)
 
-    if (m.message.senderKeyDistributionMessage) delete m.message.senderKeyDistributionMessage
-    if (m.message.messageContextInfo) delete m.message.messageContextInfo
+    if (m.message?.senderKeyDistributionMessage) delete m.message.senderKeyDistributionMessage
+    if (m.message?.messageContextInfo) delete m.message.messageContextInfo
 
     if (m.key) {
         m.id = m.key.id
@@ -25,16 +26,22 @@ export async function Sms(sock: AuralixSocket, m: any): Promise<any> {
         m.isChat = m.from.endsWith("@s.whatsapp.net")
         m.sender = jidNormalizedUser(m.key.participant || m.key.remoteJid)
         m.number = m.sender.replace("@s.whatsapp.net", "")
+
+        m.user = db.user(m.sender, m.pushName)
+        if (m.isGroup) m.group = db.group(m.from)
     }
 
     if (m.message) {
         m.type = getContentType(m.message)
-        m.msg = extractMessageContent(m.message?.[m.type])
+        m.msg = extractMessageContent(m.message)
         m.isViewOnce = m?.msg?.viewOnce ? m?.msg?.viewOnce : false
-        m.isMedia = ["image", "sticker", "video", "audio"].some(i => m.type && i == m.type.replace("Message", ""))
-        m.body = m.msg || m.msg?.caption || m.msg?.text || m.msg?.conversation
-        m.cmd = typeof m.body === 'string' && config.prefix.some((i: string) => m.body.toLowerCase().startsWith(i.toLowerCase()))
-        m.command = m.cmd ? m.body.slice(1).trim().split(/\s+/).shift().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "") : false
+        m.isMedia = ["image", "sticker", "video", "audio"].some(i => m.type && i == m.type.replace("Message", ""))  
+        m.prefix = m.group?.prefix || config.prefix[0]
+
+        m.body = m.type === 'conversation' ? m.message.conversation : m.type === 'extendedTextMessage' ? m.message.extendedTextMessage?.text : m.type === 'imageMessage' ? m.message.imageMessage?.caption : m.type === 'videoMessage' ? m.message.videoMessage?.caption : m.type === 'documentMessage' ? m.message.documentMessage?.caption : m.type === 'templateButtonReplyMessage' ? m.message.templateButtonReplyMessage?.selectedId : m.type === 'buttonsResponseMessage' ? m.message.buttonsResponseMessage?.selectedButtonId : m.type === 'listResponseMessage' ? m.message.listResponseMessage?.singleSelectReply?.selectedRowId : ''
+
+        m.cmd = typeof m.body === 'string' && (m.body.toLowerCase().startsWith(m.prefix.toLowerCase()) || config.prefix.some((i: string) => m.body.toLowerCase().startsWith(i.toLowerCase())))
+        m.command = m.cmd ? m.body.slice(m.body.toLowerCase().startsWith(m.prefix.toLowerCase()) ? m.prefix.length : 1).trim().split(/\s+/).shift().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "") : false
         m.args = typeof m.body === 'string' ? m.body.trim().split(/\s+/).slice(m.cmd ? 1 : 0) : []
         m.text = Array.isArray(m.args) ? m.args.join(" ") : ""
 
