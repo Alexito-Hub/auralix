@@ -25,7 +25,7 @@ export class Db {
         this.q.p = this.db.prepare('DELETE FROM msgs WHERE id IN (SELECT id FROM msgs ORDER BY ts ASC LIMIT 100)'); // p = prune
         this.q.c = this.db.prepare('SELECT COUNT(*) as c FROM msgs'); // c = count
         this.q.w = this.db.prepare('INSERT OR REPLACE INTO store (id, data) VALUES (1, ?)'); // w = write storage
-        this.q.r = this.db.prepare('SELECT data FROM storage WHERE id = 1'); // r = read storage
+        this.q.r = this.db.prepare('SELECT data FROM store WHERE id = 1'); // r = read storage
 
         this.data = Proto.database.Collection.create({ users: {}, groups: {} });
         this.read();

@@ -3,7 +3,7 @@ import chalk from "chalk"
 import QRCode from "qrcode"
 import fs from "fs"
 import path from "path"
-import type { WASocket } from "@whiskeysockets/baileys"
+import type { WASocket } from "baileys"
 
 const AUTH_TIMEOUT = 180000
 const AUTH_PATH = path.join(process.cwd(), "Auth/auth.db")

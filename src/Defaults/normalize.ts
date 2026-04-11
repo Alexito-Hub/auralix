@@ -1,15 +1,16 @@
-import { jidNormalizedUser, proto, getContentType, extractMessageContent, normalizeMessageContent } from "@whiskeysockets/baileys";
+import { jidNormalizedUser, proto, getContentType, extractMessageContent, normalizeMessageContent } from "baileys";
 import { AuralixSocket } from "./core";
 import config from "../config"
 import { db } from "../Database/database"
+import type { MsgCtx } from "../Types"
 
-export async function Sms(sock: AuralixSocket, m: any): Promise<any> {
-    if (!m) return
+export async function Sms(sock: AuralixSocket, m: any): Promise<MsgCtx | null> {
+    if (!m) return null
 
     const message = m as proto.IWebMessageInfo & { id?: string; from?: string; body?: string }
 
-    if (m.key.remoteJid == "status@broadcast" || m.broadcast || !m.message) return
-    if (m.key.id.startsWith("NZT")) return
+    if (m.key.remoteJid == "status@broadcast" || m.broadcast || !m.message) return null
+    if (m.key.id.startsWith("NZT")) return null
 
     m.message = normalizeMessageContent(m.message)
 
@@ -35,7 +36,7 @@ export async function Sms(sock: AuralixSocket, m: any): Promise<any> {
         m.type = getContentType(m.message)
         m.msg = extractMessageContent(m.message)
         m.isViewOnce = m?.msg?.viewOnce ? m?.msg?.viewOnce : false
-        m.isMedia = ["image", "sticker", "video", "audio"].some(i => m.type && i == m.type.replace("Message", ""))  
+        m.isMedia = ["image", "sticker", "video", "audio"].some(i => m.type && i == m.type.replace("Message", ""))
         m.prefix = m.group?.prefix || config.prefix[0]
 
         m.body = m.type === 'conversation' ? m.message.conversation : m.type === 'extendedTextMessage' ? m.message.extendedTextMessage?.text : m.type === 'imageMessage' ? m.message.imageMessage?.caption : m.type === 'videoMessage' ? m.message.videoMessage?.caption : m.type === 'documentMessage' ? m.message.documentMessage?.caption : m.type === 'templateButtonReplyMessage' ? m.message.templateButtonReplyMessage?.selectedId : m.type === 'buttonsResponseMessage' ? m.message.buttonsResponseMessage?.selectedButtonId : m.type === 'listResponseMessage' ? m.message.listResponseMessage?.singleSelectReply?.selectedRowId : ''
@@ -74,5 +75,5 @@ export async function Sms(sock: AuralixSocket, m: any): Promise<any> {
         })
     }
 
-    return message
+    return message as MsgCtx
 }

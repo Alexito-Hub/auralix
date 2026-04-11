@@ -1,6 +1,14 @@
-import makeWASocket, { GroupMetadata, UserFacingSocketConfig } from "@whiskeysockets/baileys"
+import makeWASocket, { GroupMetadata, UserFacingSocketConfig } from "baileys"
 
 export const groups = new Map<string, GroupMetadata>()
+
+// Limpiar grupos antiguos cada 5 min (evita memory leaks)
+setInterval(() => {
+    if (groups.size > 100) {
+        const toDelete = Array.from(groups.keys()).slice(0, Math.floor(groups.size * 0.3))
+        toDelete.forEach(jid => groups.delete(jid))
+    }
+}, 5 * 60 * 1000)
 
 export function Sock(config: UserFacingSocketConfig) {
     const sock = makeWASocket(config)

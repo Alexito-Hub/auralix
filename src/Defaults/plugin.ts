@@ -1,16 +1,7 @@
 import fs from "fs";
 import path from "path";
 import { pathToFileURL } from "url";
-
-interface Plugin {
-    name: string;
-    description: string;
-    disable?: boolean;
-    command?: string[] | RegExp;
-    exec?: (m: any, ctx: { sock: any; db: any }) => Promise<any>
-    start?: (m: any, ctx: { sock: any; db: any }) => Promise<any>
-    path?: string;
-}
+import type { Plugin } from "../Types";
 
 export default new class Plugins {
     public plugins: Plugin[] = [];

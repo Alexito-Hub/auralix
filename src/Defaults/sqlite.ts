@@ -1,7 +1,7 @@
 import Database from 'better-sqlite3';
 import { performance } from 'perf_hooks';
 import { Logger } from "pino";
-import { AuthenticationState, BufferJSON, initAuthCreds, proto } from '@whiskeysockets/baileys';
+import { AuthenticationState, BufferJSON, initAuthCreds, proto } from 'baileys';
 import fs from 'fs';
 import path from 'path';
 

@@ -14,3 +14,11 @@ src/Database/database.db-wal
 
 proto/database.d.ts
 proto/database.js
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Auth folder
+Auth/
