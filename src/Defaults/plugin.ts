@@ -1,7 +1,7 @@
 import fs from "fs";
 import path from "path";
 import { pathToFileURL } from "url";
-import type { Plugin } from "../Types";
+import type { Plugin } from "../@Types";
 
 export default new class Plugins {
     public plugins: Plugin[] = [];

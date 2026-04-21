@@ -2,7 +2,7 @@ import { jidNormalizedUser, proto, getContentType, extractMessageContent, normal
 import { AuralixSocket } from "./core";
 import config from "../config"
 import { db } from "../Database/database"
-import type { MsgCtx } from "../Types"
+import type { MsgCtx } from "../@Types"
 
 export async function Sms(sock: AuralixSocket, m: any): Promise<MsgCtx | null> {
     if (!m) return null
