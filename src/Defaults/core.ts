@@ -1,39 +1,29 @@
-import makeWASocket, {
-    GroupMetadata,
-    UserFacingSocketConfig,
-    WASocket as BaileysSocket
-} from "@whiskeysockets/baileys"
+import makeWASocket, { GroupMetadata, UserFacingSocketConfig } from "baileys"
 
 export const groupMetadata = new Map<string, GroupMetadata>()
 
-export interface AuralixExtensions {
-    fetchGroup(jid: string): Promise<GroupMetadata | undefined>
-}
-
-const auralixExtensions: AuralixExtensions = {
-    async fetchGroup(this: BaileysSocket, jid: string): Promise<GroupMetadata | undefined> {
-        const cached = groupMetadata.get(jid)
-        if (cached) {
-            const meta = await this.groupMetadata(jid).catch(() => null)
-            if (!meta) return
-            groupMetadata.set(jid, meta)
-            return cached
-        }
-        return cached
+setInterval(() => {
+    if (groupMetadata.size > 100) {
+        const toDelete = Array.from(groupMetadata.keys()).slice(0, Math.floor(groupMetadata.size * 0.3))
+        toDelete.forEach(jid => groupMetadata.delete(jid))
     }
-    
-}
+}, 5 * 60 * 1000).unref?.()
 
+export function Sock(config: UserFacingSocketConfig) {
+    const sock = makeWASocket(config)
 
-export function WASocket(
-    config: UserFacingSocketConfig
-): BaileysSocket & AuralixExtensions {
-    const socket = makeWASocket(config)
-    Object.entries(auralixExtensions).forEach(([key, fn]) => {
-        // @ts-expect-error
-        socket[key] = typeof fn === "function" ? fn.bind(socket) : fn
+    return Object.assign(sock, {
+        async fetchGroup(jid: string) {
+            let m = groupMetadata.get(jid)
+            if (!m) {
+                m = await sock.groupMetadata(jid).catch(() => undefined)
+                if (m) groupMetadata.set(jid, m)
+            } else {
+                sock.groupMetadata(jid).then(res => groupMetadata.set(jid, res)).catch(() => null)
+            }
+            return m
+        },
     })
-    return socket as BaileysSocket & AuralixExtensions
 }
 
-export type AuralixSocket = ReturnType<typeof WASocket>
+export type Auralix = ReturnType<typeof Sock>

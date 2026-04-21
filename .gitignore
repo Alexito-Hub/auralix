@@ -5,6 +5,7 @@ package-lock.json
 db.json
 .vs
 .vscode
+.env
 auth.db
 auth.db-shm
 auth.db-wal

@@ -1,109 +1,185 @@
 import Database from 'better-sqlite3';
-import { Logger } from 'pino';
-import P from 'pino';
-import { performance } from 'perf_hooks';
 import * as Proto from '../../proto/database';
 import fs from 'fs';
-
-export const profiling = (name: string, func: () => any, logger: Logger) => {
-    const start = performance.now()
-    func()
-    const end = performance.now()
-    logger.info(`${name} took ${(end - start).toFixed(2)}ms`)
-};
+import path from 'path';
 
 export class database {
-    public logger: Logger
-    public path: string
-    public data: Proto.database.ICollection
-    public needProfiling: boolean
-    private db: Database.Database
+    public data: Proto.database.ICollection;
+    private db: Database.Database;
+    private q: Record<string, Database.Statement> = {};
+    private c = 0;
 
-    /**
-     * Creates a new database instance.
-     *
-     * @param {Object} [options] - The options to use.
-     * @param {string} [options.path] - The path to the SQLite database file.
-     * @param {Logger} [options.logger] - The logger to use.
-     * @param {boolean} [options.needProfiling] - Whether to profile the read operation.
-     */
-    constructor({ path, logger, needProfiling }: { path: string, logger: Logger, needProfiling: boolean }) {
-        this.path = path
-        this.logger = logger
-        this.data = Proto.database.Collection.create({
-            users: {}
-        });
+    constructor(p: string) {
+        const d = path.dirname(p);
+        if (!fs.existsSync(d)) fs.mkdirSync(d, { recursive: true });
 
-        this.needProfiling = needProfiling;
-
-        const dir = require('path').dirname(path)
-        if (!fs.existsSync(dir)) {
-            fs.mkdirSync(dir, { recursive: true })
-        }
-
-        this.db = new Database(path)
+        this.db = new Database(p);
         this.db.exec(`
             PRAGMA journal_mode = WAL;
-            PRAGMA synchronous = NORMAL;
-            PRAGMA temp_store = MEMORY;
-            PRAGMA mmap_size = 268435456;
-            PRAGMA cache_size = -64000;
-            CREATE TABLE IF NOT EXISTS storage (
-                id INTEGER PRIMARY KEY,
-                data BLOB
-            );
+            CREATE TABLE IF NOT EXISTS store (id INTEGER PRIMARY KEY, data BLOB);
+            CREATE TABLE IF NOT EXISTS msgs (id TEXT PRIMARY KEY, jid TEXT, me INTEGER, part TEXT, json TEXT, ts INTEGER);
+            CREATE INDEX IF NOT EXISTS idx_ts ON msgs (ts);
         `);
 
-        if (this.needProfiling) {
-            profiling('read', this.read.bind(this), this.logger);
+        this.q.s = this.db.prepare('INSERT OR REPLACE INTO msgs VALUES (?, ?, ?, ?, ?, ?)'); // s = save
+        this.q.m = this.db.prepare('SELECT json FROM msgs WHERE id = ?'); // m = get msg
+        this.q.p = this.db.prepare('DELETE FROM msgs WHERE id IN (SELECT id FROM msgs ORDER BY ts ASC LIMIT 100)'); // p = prune
+        this.q.c = this.db.prepare('SELECT COUNT(*) as c FROM msgs'); // c = count
+        this.q.w = this.db.prepare('INSERT OR REPLACE INTO store (id, data) VALUES (1, ?)'); // w = write storage
+        this.q.r = this.db.prepare('SELECT data FROM store WHERE id = 1'); // r = read storage
+
+        this.data = Proto.database.Collection.create({ users: {}, groups: {} });
+        this.read();
+    }
+
+    public read() {
+        const row = this.q.r.get() as { data: Buffer } | undefined;
+        if (!row) return
+
+        try {
+            this.data = Proto.database.Collection.decode(row.data);
+        } catch {
+            this.data = Proto.database.Collection.create({ users: {}, groups: {} });
+        }
+    }
+
+    public write() {
+        const buf = Proto.database.Collection.encode(this.data).finish();
+        this.q.w.run(Buffer.from(buf));
+    }
+
+    public saveMessage(m: any) {
+        try {
+            if (!m?.key?.id || !m?.key?.remoteJid) return
+
+            const ts = typeof m.messageTimestamp === "number" ? m.messageTimestamp : Number(m.messageTimestamp) || Math.floor(Date.now() / 1000)
+
+            this.q.s.run(m.key.id, m.key.remoteJid, m.key.fromMe ? 1 : 0, m.key.participant || '', JSON.stringify(m.message), ts);
+            if (++this.c >= 50) {
+                this.c = 0;
+                if ((this.q.c.get() as any).c > 1000) this.q.p.run();
+            }
+        } catch {}
+    }
+
+    public getMessage(id: string) {
+        const row = this.q.m.get(id) as { json: string } | undefined;
+        return row ? JSON.parse(row.json) : null;
+    }
+
+    public user(id: string, name = 'User') {
+        if (!this.data.users) this.data.users = {};
+
+        const users = this.data.users as Record<string, Proto.database.IUser>
+        const createdAt = Date.now()
+        const defaults: Proto.database.IUser = {
+            email: "",
+            passwordHash: "",
+            banned: false,
+            name,
+            age: 0,
+            createdAt,
+            updatedAt: createdAt,
+            coins: 0,
+            xp: 0,
+            level: 1,
+            warns: 0,
+            number: id.replace("@s.whatsapp.net", ""),
+            language: "es",
+            timezone: "UTC",
+            country: "",
+            registered: false,
+            blacklist: false
+        }
+
+        const current = (users[id] ?? {}) as Record<string, unknown>
+        let changed = false
+
+        for (const [k, v] of Object.entries(defaults)) {
+            if (current[k] === undefined || current[k] === null) {
+                current[k] = v
+                changed = true
+            }
+        }
+
+        if (typeof name === "string" && name.trim().length > 0 && current.name !== name) {
+            current.name = name
+            changed = true
+        }
+
+        if (changed) {
+            current.updatedAt = Date.now()
+            users[id] = current as Proto.database.IUser
+            this.write()
         } else {
-            this.read.bind(this)();
+            users[id] = current as Proto.database.IUser
         }
 
-        logger.info(`Database in archive ${path} initialized`);
+        return this.data.users[id];
     }
 
-    /**
-     * Reads data from the database archive.
-     * If the data is already in cache, it reads from there.
-     * If not, it reads from the database file.
-     */
-    public async read() {
-        this.logger.info("Trying to decode data");
-        try {
-            const row: any = this.db.prepare('SELECT data FROM storage WHERE id = ?').get(1);
-            if (row) {
-                const buffer = row.data as Buffer;
-                this.data = Proto.database.Collection.decode(buffer);
-                this.logger.info(`Database in archive ${this.path} read from cache (Size: ${buffer.length} bytes)`);
-            }
-        } catch (error) {
-            this.logger.error(error);
-        }
-    }
+    public group(id: string) {
+        if (!this.data.groups) this.data.groups = {};
 
-    /**
-     * Writes data to the database archive.
-     * If this.needProfiling is true, it will profile the write operation and log the time it took.
-     * If not, it will just write.
-     */
-    public async write() {
-        try {
-            const writeOperation = () => {
-                const writer = Proto.database.Collection.encode(this.data);
-                const buffer = writer.finish();
-                this.db.transaction(() => {
-                    this.db.prepare('INSERT OR REPLACE INTO storage (id, data) VALUES (?, ?)').run(1, Buffer.from(buffer));
-                })();
-            }
-
-            if (this.needProfiling) profiling('write', writeOperation, this.logger);
-            else await writeOperation();
-            this.logger.info(`Database in archive ${this.path} written`);
-        } catch (error) {
-            this.logger.error(error);
+        const groups = this.data.groups as Record<string, Proto.database.IGroup>
+        const defaults: Proto.database.IGroup = {
+            prefix: '@',
+            welcome: '',
+            bye: '',
+            mute: false,
+            welcomeEnabled: false,
+            name: '',
+            code: '',
+            antilink: {
+                status: false,
+                platforms: {}
+            },
+            antiporn: false,
+            antionce: false,
+            antifake: false,
+            antitoxic: false,
+            antidelete: false,
+            notifications: {}
         }
+
+        const current = (groups[id] ?? {}) as Record<string, unknown>
+        let changed = false
+
+        for (const [k, v] of Object.entries(defaults)) {
+            if (current[k] === undefined || current[k] === null) {
+                current[k] = v
+                changed = true
+            }
+        }
+
+        if (typeof current.antilink !== "object" || current.antilink === null) {
+            current.antilink = {
+                status: Boolean(current.antilink),
+                platforms: {}
+            }
+            changed = true
+        }
+
+        const antiLinkObj = current.antilink as { status?: boolean; platforms?: Record<string, boolean> }
+        if (!antiLinkObj.platforms || typeof antiLinkObj.platforms !== "object") {
+            antiLinkObj.platforms = {}
+            changed = true
+        }
+
+        if (!current.notifications || typeof current.notifications !== "object") {
+            current.notifications = {}
+            changed = true
+        }
+
+        if (changed) {
+            groups[id] = current as Proto.database.IGroup
+            this.write()
+        } else {
+            groups[id] = current as Proto.database.IGroup
+        }
+
+        return this.data.groups[id];
     }
 }
 
-export const db = new database({ path: './src/Database/database.db', logger: P({ level: 'silent' }), needProfiling: true })
+export const db = new database('./src/Database/database.db');

@@ -1,27 +1,19 @@
 import fs from "fs";
 import path from "path";
 import { pathToFileURL } from "url";
-
-interface Plugin {
-    name: string;
-    description: string;
-    disable?: boolean;
-    command?: string[] | RegExp;
-    exec?: (m: any, ctx: { sock: any; db: any }) => Promise<any>
-    start?: (m: any, ctx: { sock: any; db: any }) => Promise<any>
-    path?: string;
-}
+import type { Plugin } from "../@Types";
 
 export default new class Plugins {
     public plugins: Plugin[] = [];
 
     constructor(
-        private folder = path.join(process.cwd(), 'src/Plugins'),
-        private filter = (f: string) => /\.(js|ts)$/.test(f)
+        private folder = path.resolve(__dirname, "..", "Plugins"),
+        private filter = (f: string) => /\.(js|ts)$/.test(f) && !f.endsWith(".d.ts")
     ) { }
 
     async load(): Promise<void> {
         if (!fs.existsSync(this.folder)) fs.mkdirSync(this.folder, { recursive: true });
+        this.plugins = [];
         await this.loadFromDir(this.folder);
     }
 

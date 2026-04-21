@@ -4,7 +4,7 @@ export default {
     command: ["menu"],
     exec: async (m: any, { sock }: { sock: any }) => {
         sock.sendMessage(m.from, {
-            text: "Bitch"
+            text: "Comandos disponibles:\n- @menu\n- @info"
         })
     }
 }

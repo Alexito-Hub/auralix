@@ -13,7 +13,7 @@ export default new class Request {
         this.jar = new CookieJar()
         this.cloud = cloudscraper
 
-        this.client = wrapper(axios.create({ jar: this.jar }))
+        this.client = wrapper(axios.create({ jar: this.jar } as any))
 
         this.axios = wrapper(
             axios.create({
@@ -27,7 +27,7 @@ export default new class Request {
                 jar: this.jar,
                 timeout: 10000,
                 maxRedirects: 5,
-            })
+            } as any)
         )
     }
 }()

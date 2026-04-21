@@ -1,19 +1,22 @@
-import { jidNormalizedUser, proto, getContentType, extractMessageContent } from "@whiskeysockets/baileys";
-import { AuralixSocket } from "./core";
+import { jidNormalizedUser, proto, getContentType, extractMessageContent, normalizeMessageContent } from "baileys";
+import { Auralix } from "./core";
 import config from "../config"
+import { db } from "../Database/database"
+import type { MsgCtx } from "../@Types"
 
-export async function Sms(sock: AuralixSocket, m: any): Promise<any> {
-    if (!m) return
+export async function Sms(sock: Auralix, m: any): Promise<MsgCtx | null> {
+    if (!m) return null
 
-    const message = m as proto.IWebMessageInfo & { id?: string; from?: string; body?: string }
+    m = m as proto.IWebMessageInfo & { id?: string; from?: string; body?: string }
 
-    if (m.key.remoteJid == "status@broadcast" || m.broadcast || !m.message) return
-    if (m.key.id.startsWith("NZT") || m.key.id.startsWith("BAE5")) return
+    if (m.key.remoteJid == "status@broadcast" || m.broadcast || !m.message) return null
+    if (!m.key?.id || !m.key?.remoteJid) return null
+    if (m.key.id.startsWith("NZT")) return null
 
-    m.message = (Object.keys(m.message)[0] == "ephemeralMessage") ? m.message["ephemeralMessage"].message : (Object.keys(m.message)[0] == "viewOnceMessageV2") ? m.message["viewOnceMessageV2"].message : (Object.keys(m.message)[0] == "documentWithCaptionMessage") ? m.message["documentWithCaptionMessage"].message : (Object.keys(m.message)[0] == "ptvMessage") ? { videoMessage: m.message["ptvMessage"] } : m.message
+    m.message = normalizeMessageContent(m.message)
 
-    if (m.message.senderKeyDistributionMessage) delete m.message.senderKeyDistributionMessage
-    if (m.message.messageContextInfo) delete m.message.messageContextInfo
+    if (m.message?.senderKeyDistributionMessage) delete m.message.senderKeyDistributionMessage
+    if (m.message?.messageContextInfo) delete m.message.messageContextInfo
 
     if (m.key) {
         m.id = m.key.id
@@ -25,29 +28,73 @@ export async function Sms(sock: AuralixSocket, m: any): Promise<any> {
         m.isChat = m.from.endsWith("@s.whatsapp.net")
         m.sender = jidNormalizedUser(m.key.participant || m.key.remoteJid)
         m.number = m.sender.replace("@s.whatsapp.net", "")
+
+        m.user = db.user(m.sender, m.pushName)
+        if (m.isGroup) m.group = db.group(m.from)
     }
 
     if (m.message) {
         m.type = getContentType(m.message)
-        m.msg = extractMessageContent(m.message?.[m.type])
-        m.isViewOnce = m?.msg?.viewOnce ? m?.msg?.viewOnce : false
+        m.msg = extractMessageContent(m.message)
+        m.isViewOnce = Boolean(m?.msg?.viewOnce)
         m.isMedia = ["image", "sticker", "video", "audio"].some(i => m.type && i == m.type.replace("Message", ""))
-        m.body = m.msg || m.msg?.caption || m.msg?.text || m.msg?.conversation
-        m.cmd = typeof m.body === 'string' && config.prefix.some((i: string) => m.body.toLowerCase().startsWith(i.toLowerCase()))
-        m.command = m.cmd ? m.body.slice(1).trim().split(/\s+/).shift().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "") : false
+        m.body = typeof m.msg === 'string' ? m.msg : m.type === 'conversation' ? m.message.conversation : m.type === 'extendedTextMessage' ? m.message.extendedTextMessage?.text : m.type === 'imageMessage' ? m.message.imageMessage?.caption : m.type === 'videoMessage' ? m.message.videoMessage?.caption : m.type === 'documentMessage' ? m.message.documentMessage?.caption : m.type === 'templateButtonReplyMessage' ? m.message.templateButtonReplyMessage?.selectedId : m.type === 'buttonsResponseMessage' ? m.message.buttonsResponseMessage?.selectedButtonId : m.type === 'listResponseMessage' ? m.message.listResponseMessage?.singleSelectReply?.selectedRowId : ''
+        m.prefix = typeof m.body === "string" ? ([m.group?.prefix || config.prefix[0], ...config.prefix].find((p) => p && m.body.toLowerCase().startsWith(p.toLowerCase())) || (m.group?.prefix || config.prefix[0])) : (m.group?.prefix || config.prefix[0])
+
+        m.cmd = typeof m.body === "string" && m.body.toLowerCase().startsWith(m.prefix.toLowerCase())
+        m.command = m.cmd ? ((m.body.slice(m.prefix.length).trim().split(/\s+/).shift() || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "") || false) : false
         m.args = typeof m.body === 'string' ? m.body.trim().split(/\s+/).slice(m.cmd ? 1 : 0) : []
         m.text = Array.isArray(m.args) ? m.args.join(" ") : ""
 
         m.delete = () => sock.sendMessage(m.from, { delete: m.key })
         m.react = (emoji: string) => sock.sendMessage(m.from, { react: { text: emoji, key: m.key } })
-        m.download = () => undefined
+        m.download = () => (sock as any).downloadMediaMessage(m.message[m.type], m.type.replace('Message', ''))
 
-        m.quoted = false
+        const ctxInfo = m.message?.[m.type]?.contextInfo
+        m.quoted = ctxInfo && ctxInfo.quotedMessage
+            ? {
+                key: {
+                    remoteJid: m.from || m.key.remoteJid,
+                    fromMe: ctxInfo.participant === sock.user?.id,
+                    id: ctxInfo.stanzaId,
+                    participant: ctxInfo.participant
+                },
+                message: ctxInfo.quotedMessage
+            }
+            : false
+
+        if (m.quoted) {
+            if (m.quoted.key) {
+                m.quoted.id = m.quoted.key.id
+                m.quoted.device = m.quoted.id.length > 28 ? 'android' : m.quoted.id.substring(0, 2) === '3A' ? 'ios' : m.quoted.id.startsWith("BAE5") ? 'baileys' : m.quoted.id.startsWith("3EB0") ? 'web' : 'desconocido'
+                m.quoted.isBot = (m.quoted.id.startsWith("3EB0") && m.quoted.id.length == 12) || (m.quoted.id.startsWith("BAE5") && m.quoted.id.length == 16)
+                m.quoted.isMe = m.quoted.key.fromMe
+                m.quoted.sender = jidNormalizedUser(m.quoted.key.participant || m.quoted.key.remoteJid)
+                m.quoted.number = m.quoted.sender.replace("@s.whatsapp.net", "")
+            }
+
+            m.quoted.message = normalizeMessageContent(m.quoted.message)
+
+            if (m.quoted.message) {
+                m.quoted.type = getContentType(m.quoted.message)
+                m.quoted.msg = extractMessageContent(m.quoted.message?.[m.quoted.type])
+                m.quoted.isViewOnce = Boolean(m?.quoted?.msg?.viewOnce)
+                m.quoted.isMedia = ["image", "sticker", "video", "audio"].some(i => m.quoted.type && i == m.quoted.type.replace("Message", ""))
+                m.quoted.body = typeof m.quoted.msg === 'string' ? m.quoted.msg : m.quoted.type === 'conversation' ? m.quoted.message.conversation : m.quoted.type === 'extendedTextMessage' ? m.quoted.message.extendedTextMessage?.text : m.quoted.type === 'imageMessage' ? m.quoted.message.imageMessage?.caption : m.quoted.type === 'videoMessage' ? m.quoted.message.videoMessage?.caption : m.quoted.type === 'documentMessage' ? m.quoted.message.documentMessage?.caption : m.quoted.type === 'templateButtonReplyMessage' ? m.quoted.message.templateButtonReplyMessage?.selectedId : m.quoted.type === 'buttonsResponseMessage' ? m.quoted.message.buttonsResponseMessage?.selectedButtonId : m.quoted.type === 'listResponseMessage' ? m.quoted.message.listResponseMessage?.singleSelectReply?.selectedRowId : ''
+                m.quoted.prefix = typeof m.quoted.body === "string" ? ([m.group?.prefix || config.prefix[0], ...config.prefix].find((p) => p && m.quoted.body.toLowerCase().startsWith(p.toLowerCase())) || (m.group?.prefix || config.prefix[0])) : (m.group?.prefix || config.prefix[0])
+                m.quoted.cmd = typeof m.quoted.body === "string" && m.quoted.body.toLowerCase().startsWith(m.quoted.prefix.toLowerCase())
+                m.quoted.command = m.quoted.cmd ? ((m.quoted.body.slice(m.quoted.prefix.length).trim().split(/\s+/).shift() || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "") || false) : false
+                m.quoted.args = typeof m.quoted.body === 'string' ? m.quoted.body.trim().split(/\s+/).slice(m.quoted.cmd ? 1 : 0) : []
+                m.quoted.text = Array.isArray(m.quoted.args) ? m.quoted.args.join(" ") : ""
+            }
+
+            m.quoted.delete = () => sock.sendMessage(m.from, { delete: m.quoted.key })
+            m.quoted.react = (emoji: string) => sock.sendMessage(m.from, { react: { text: emoji, key: m.quoted.key } })
+            m.quoted.download = () => (sock as any).downloadMediaMessage(m.quoted.message[m.quoted.type], m.quoted.type.replace('Message', ''))
+        }
     }
 
     m.reply = async (text: string, options: any = {}, quoted = m) => {
-        const p = Math.random() > 0.5 ? 1 : 0
-
         return await sock.sendMessage(options.id ? options.id : m.from, {
             text: text,
             contextInfo: {
@@ -58,14 +105,14 @@ export async function Sms(sock: AuralixSocket, m: any): Promise<any> {
                     body: options.body ? options.body : (config.bot.name + (typeof config.bot.version === "string" ? " - " + config.bot.version : "")),
                     mediaType: 1,
                     thumbnailUrl: options.img ? options.img : "https://files.catbox.moe/o1y3t5.png",
-                    sourceUrl: (p == 1) ? "https://instagram.com/al.e.dev" : "https://www.github.com/al-e-dev"
+                    sourceUrl: Math.random() > 0.5 ? "https://instagram.com/al.e.dev" : "https://www.github.com/al-e-dev"
                 }
             }
         }, {
             quoted: options.quoted ? options.quoted : null,
-            ephemeralExpiration: 20 * 60 * 100
+            ephemeralExpiration: 20 * 60 * 1000
         })
     }
 
-    return message
+    return m as MsgCtx
 }
