@@ -2,6 +2,7 @@ import fs from "fs";
 import path from "path";
 import { pathToFileURL } from "url";
 import type { Plugin } from "../@Types";
+import logger from "../Utils/logger";
 
 export default new class Plugins {
     public plugins: Plugin[] = [];
@@ -27,9 +28,10 @@ export default new class Plugins {
                     const { default: p } = await import(pathToFileURL(fullPath).href);
                     if (p?.name && (p?.exec || p?.start)) {
                         this.plugins.push({ disable: false, path: fullPath, ...p });
+                        logger.info(`Plugin ${p.name} loaded successfully`);
                     }
-                } catch (e) {
-                    console.error(`Error loading plugin ${file.name}:`, e);
+                } catch (e: any) {
+                    logger.error(`Error loading plugin ${file.name} type error ${e.message}`);
                 }
             }
         }

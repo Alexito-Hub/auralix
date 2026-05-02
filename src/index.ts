@@ -1,12 +1,6 @@
-import {
-    AuthenticationCreds,
-    BaileysEventMap,
-    DisconnectReason,
-    fetchLatestBaileysVersion,
-    makeCacheableSignalKeyStore
-} from "baileys";
-
+import * as Baileys from 'baileys'
 import { Boom } from "@hapi/boom";
+import QRCode from "qrcode";
 import pino from "pino";
 import fs from "fs";
 
@@ -14,21 +8,22 @@ import plugins from "./Defaults/plugin";
 import { Sms } from "./Defaults/normalize"
 import { groupMetadata, Sock } from "./Defaults/core"
 import { db } from "./Database/database"
-import wconnect from "./Utils/auth";
 import Request from "./Scraper/Request";
 import sqlite from "./Defaults/sqlite";
+import config from "./config";
 
-const start = async (retries = 0): Promise<void> => {
+
+const start = async (retries = 0, pairing = true): Promise<void> => {
     const DEFAULT_CACHE_NAME = "open"
     const session = new Map<string, ReturnType<typeof Sock>>()
     const logger = pino({ level: "silent" })
     const { state, saveCreds } = await sqlite.AuthState('socket', 'Auth/auth.db', logger)
-    const { version } = await fetchLatestBaileysVersion()
+    const { version } = await Baileys.fetchLatestBaileysVersion()
     const auralix = Sock({
         logger,
         auth: {
-            creds: state.creds as AuthenticationCreds,
-            keys: makeCacheableSignalKeyStore(state.keys, logger)
+            creds: state.creds as Baileys.AuthenticationCreds,
+            keys: Baileys.makeCacheableSignalKeyStore(state.keys, logger)
         },
         cachedGroupMetadata: async (jid: string) => groupMetadata.get(jid),
         getMessage: async () => undefined,
@@ -38,7 +33,7 @@ const start = async (retries = 0): Promise<void> => {
     await plugins.load()
     db.read()
 
-    auralix.ev.process(async (ev: Partial<BaileysEventMap>) => {
+    auralix.ev.process(async (ev: Partial<Baileys.BaileysEventMap>) => {
         if (!ev) return
         if (ev['creds.update']) await saveCreds()
 
@@ -46,7 +41,13 @@ const start = async (retries = 0): Promise<void> => {
             const { qr, connection, lastDisconnect } = ev["connection.update"]
 
             if (qr && !auralix.authState.creds.registered) {
-                await wconnect.ws(auralix, qr)
+                if (pairing) {
+                    const code = await auralix.requestPairingCode(config.owner.number)
+                    console.log("Código de emparejamiento: " + code)
+                } else {
+                    console.log("Escanea este código QR")
+                    console.log(await QRCode.toString(qr, { type: "terminal", errorCorrectionLevel: "L" }))
+                }
             }
 
             switch (connection) {
@@ -58,13 +59,13 @@ const start = async (retries = 0): Promise<void> => {
                     const reason = new Boom(lastDisconnect?.error).output.statusCode
                     let text: string
                     switch (reason) {
-                        case DisconnectReason.connectionLost:
-                        case DisconnectReason.forbidden:
-                        case DisconnectReason.badSession:
-                        case DisconnectReason.timedOut:
-                        case DisconnectReason.unavailableService:
-                        case DisconnectReason.connectionClosed:
-                        case DisconnectReason.connectionReplaced:
+                        case Baileys.DisconnectReason.connectionLost:
+                        case Baileys.DisconnectReason.forbidden:
+                        case Baileys.DisconnectReason.badSession:
+                        case Baileys.DisconnectReason.timedOut:
+                        case Baileys.DisconnectReason.unavailableService:
+                        case Baileys.DisconnectReason.connectionClosed:
+                        case Baileys.DisconnectReason.connectionReplaced:
                             if (retries <= 5) {
                                 retries++
                                 const delay = Math.min(retries * 3000, 15000)
@@ -78,11 +79,11 @@ const start = async (retries = 0): Promise<void> => {
                                 process.exit(1)
                             }
                             break
-                        case DisconnectReason.restartRequired:
+                        case Baileys.DisconnectReason.restartRequired:
                             console.log('[ ~ ] Reinicio requerido, reconectando...')
                             await start(0)
                             break
-                        case DisconnectReason.loggedOut:
+                        case Baileys.DisconnectReason.loggedOut:
                             fs.rmSync('Auth', { recursive: true, force: true })
                             text = `[ ! ] Sesión cerrada (${reason}). Auth limpiado, vuelve a vincular.`
                             console.log(text)
@@ -117,7 +118,10 @@ const start = async (retries = 0): Promise<void> => {
                 if (!m) continue
 
                 const args = {
+                    Baileys,
+                    proto: Baileys.proto,
                     sock: auralix,
+                    m,
                     db,
                     r: Request
                 }

@@ -98,18 +98,18 @@ export async function Sms(sock: Auralix, m: any): Promise<MsgCtx | null> {
         return await sock.sendMessage(options.id ? options.id : m.from, {
             text: text,
             contextInfo: {
-                mentionedJid: options.mentions ? options.mentions : [],
+                mentionedJid: options.mentions || [],
                 externalAdReply: {
-                    renderLargerThumbnail: options.render ? options.render : false,
-                    showAdAttribution: options.adAttrib ? options.adAttrib : false,
-                    body: options.body ? options.body : (config.bot.name + (typeof config.bot.version === "string" ? " - " + config.bot.version : "")),
+                    renderLargerThumbnail: options.render || false,
+                    showAdAttribution: options.adAttrib || false,
+                    body: options.body || (config.bot.name + (typeof config.bot.version === "string" ? " - " + config.bot.version : "")),
                     mediaType: 1,
-                    thumbnailUrl: options.img ? options.img : "https://files.catbox.moe/o1y3t5.png",
+                    thumbnailUrl: options.img || "https://files.catbox.moe/o1y3t5.png",
                     sourceUrl: Math.random() > 0.5 ? "https://instagram.com/al.e.dev" : "https://www.github.com/al-e-dev"
                 }
             }
         }, {
-            quoted: options.quoted ? options.quoted : null,
+            quoted: options.quoted ? m : null,
             ephemeralExpiration: 20 * 60 * 1000
         })
     }

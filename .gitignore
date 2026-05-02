@@ -6,6 +6,7 @@ db.json
 .vs
 .vscode
 .env
+dist
 auth.db
 auth.db-shm
 auth.db-wal

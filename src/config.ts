@@ -1,6 +1,6 @@
 const config = {
     owner: {
-        number: "51945879945"
+        number: "51907924307"
     },
     bot: {
         name: "Auralix",
@@ -8,7 +8,7 @@ const config = {
         version: "1.0.0-preview"
     },
     mods: [],
-    prefix: ["@", "!"]
+    prefix: ["@", "!", "#"]
 }
 
-export default config
+export default config
